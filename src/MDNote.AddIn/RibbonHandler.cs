@@ -2,10 +2,18 @@ namespace MDNote
 {
     using MDNote.OneNote;
     using System;
+    using System.Diagnostics;
+    using System.Runtime.InteropServices;
     using System.Windows.Forms;
 
     internal static class RibbonHandler
     {
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
         /// <summary>
         /// Proof-of-life: Gets the current page title via COM interop
         /// and displays it in a MessageBox.
@@ -19,28 +27,25 @@ namespace MDNote
 
                 if (string.IsNullOrEmpty(pageId))
                 {
-                    MessageBox.Show(
+                    ShowForegroundMessageBox(
                         "No active page found.",
                         "MD Note",
-                        MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     return;
                 }
 
                 var title = interop.GetPageTitle(pageId);
 
-                MessageBox.Show(
+                ShowForegroundMessageBox(
                     $"Page title: {title}\nPage ID: {pageId}",
                     "MD Note — Render Page (Session 1)",
-                    MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
+                ShowForegroundMessageBox(
                     $"Error: {ex.Message}",
                     "MD Note — Error",
-                    MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
         }
@@ -50,11 +55,27 @@ namespace MDNote
         /// </summary>
         public static void ShowStub(string featureName, int sessionNumber)
         {
-            MessageBox.Show(
+            ShowForegroundMessageBox(
                 $"MD Note: {featureName} — Session {sessionNumber}",
                 "MD Note",
-                MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
+        }
+
+        private static void ShowForegroundMessageBox(string text, string caption, MessageBoxIcon icon)
+        {
+            // dllhost.exe runs out-of-process; use NativeWindow as owner so
+            // the MessageBox appears in front of OneNote.
+            var ownerHandle = GetForegroundWindow();
+            var owner = new NativeWindow();
+            try
+            {
+                owner.AssignHandle(ownerHandle);
+                MessageBox.Show(owner, text, caption, MessageBoxButtons.OK, icon);
+            }
+            finally
+            {
+                owner.ReleaseHandle();
+            }
         }
     }
 }

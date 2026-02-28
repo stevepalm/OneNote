@@ -6,8 +6,6 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <RootNamespace>MDNote.OneNote</RootNamespace>
     <AssemblyName>MDNote.OneNote</AssemblyName>
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>..\MDNote.AddIn\MDNote.snk</AssemblyOriginatorKeyFile>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 

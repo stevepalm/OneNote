@@ -43,7 +43,24 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "regasm completed successfully." -ForegroundColor Green
 
-# 2. OneNote add-in registry key
+# 2. AppID linkage (critical — OneNote loads add-ins via dllhost.exe surrogate)
+$guid = '{A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}'
+Write-Host "`nSetting AppID linkage for DllSurrogate..." -ForegroundColor Yellow
+
+# Link CLSID -> AppID
+$hklmClsid = "HKLM:\SOFTWARE\Classes\CLSID\$guid"
+if (Test-Path $hklmClsid) {
+    Set-ItemProperty -Path $hklmClsid -Name 'AppID' -Value $guid -Type String
+    Write-Host "  CLSID -> AppID link set." -ForegroundColor Green
+}
+
+# Create AppID with DllSurrogate=""
+$appIdPath = "HKLM:\SOFTWARE\Classes\AppID\$guid"
+New-Item -Path $appIdPath -Force | Out-Null
+Set-ItemProperty -Path $appIdPath -Name 'DllSurrogate' -Value '' -Type String
+Write-Host "  AppID DllSurrogate set." -ForegroundColor Green
+
+# 3. OneNote add-in registry key
 $addinKey = 'HKCU:\SOFTWARE\Microsoft\Office\OneNote\AddIns\MDNote.AddIn'
 
 Write-Host "`nCreating registry key: $addinKey" -ForegroundColor Yellow

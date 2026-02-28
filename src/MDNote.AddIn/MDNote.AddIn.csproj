@@ -7,8 +7,6 @@
     <OutputType>Library</OutputType>
     <RootNamespace>MDNote</RootNamespace>
     <AssemblyName>MDNote.AddIn</AssemblyName>
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>MDNote.snk</AssemblyOriginatorKeyFile>
     <RegisterForComInterop>false</RegisterForComInterop>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -24,13 +22,13 @@
   <ItemGroup>
     <Reference Include="extensibility">
       <HintPath>$(VSInstallDir)Common7\IDE\PublicAssemblies\extensibility.dll</HintPath>
-      <EmbedInteropTypes>True</EmbedInteropTypes>
-      <Private>False</Private>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+      <Private>True</Private>
     </Reference>
     <Reference Include="office">
       <HintPath>$(VSInstallDir)Common7\IDE\ReferenceAssemblies\v4.0\Office15\Office.dll</HintPath>
-      <EmbedInteropTypes>True</EmbedInteropTypes>
-      <Private>False</Private>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />

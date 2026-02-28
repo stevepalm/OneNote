@@ -10,11 +10,27 @@ namespace MDNote
     [ComVisible(true)]
     [Guid("A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D")]
     [ProgId("MDNote.AddIn")]
-    [ClassInterface(ClassInterfaceType.None)]
+    [ClassInterface(ClassInterfaceType.AutoDispatch)]
     public class AddIn : IDTExtensibility2, IRibbonExtensibility
     {
+        private static readonly string LogPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "MDNote", "addin.log");
+
         private IRibbonUI _ribbon;
         private object _oneNoteApp;
+
+        private static void Log(string message)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(LogPath);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.AppendAllText(LogPath,
+                    $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
+            }
+            catch { }
+        }
 
         // --- IDTExtensibility2 ---
 
@@ -24,13 +40,23 @@ namespace MDNote
             object AddInInst,
             ref Array custom)
         {
-            _oneNoteApp = Application;
+            try
+            {
+                Log($"OnConnection called. ConnectMode={ConnectMode}");
+                _oneNoteApp = Application;
+                Log("OnConnection OK");
+            }
+            catch (Exception ex)
+            {
+                Log($"OnConnection FAILED: {ex}");
+            }
         }
 
         public void OnDisconnection(
             ext_DisconnectMode RemoveMode,
             ref Array custom)
         {
+            Log("OnDisconnection called");
             if (_oneNoteApp != null)
             {
                 Marshal.ReleaseComObject(_oneNoteApp);
@@ -40,21 +66,40 @@ namespace MDNote
         }
 
         public void OnAddInsUpdate(ref Array custom) { }
-        public void OnStartupComplete(ref Array custom) { }
-        public void OnBeginShutdown(ref Array custom) { }
+        public void OnStartupComplete(ref Array custom) { Log("OnStartupComplete"); }
+        public void OnBeginShutdown(ref Array custom) { Log("OnBeginShutdown"); }
 
         // --- IRibbonExtensibility ---
 
         public string GetCustomUI(string RibbonID)
         {
-            if (RibbonID != "Microsoft.OneNote")
-                return null;
-
-            var assembly = Assembly.GetExecutingAssembly();
-            using (var stream = assembly.GetManifestResourceStream("MDNote.Ribbon.xml"))
-            using (var reader = new StreamReader(stream))
+            try
             {
-                return reader.ReadToEnd();
+                Log($"GetCustomUI called. RibbonID='{RibbonID}'");
+
+                var assembly = Assembly.GetExecutingAssembly();
+                var names = assembly.GetManifestResourceNames();
+                Log($"Embedded resources: [{string.Join(", ", names)}]");
+
+                using (var stream = assembly.GetManifestResourceStream("MDNote.Ribbon.xml"))
+                {
+                    if (stream == null)
+                    {
+                        Log("ERROR: Ribbon.xml resource stream is null");
+                        return null;
+                    }
+                    using (var reader = new StreamReader(stream))
+                    {
+                        var xml = reader.ReadToEnd();
+                        Log($"Returning ribbon XML ({xml.Length} chars)");
+                        return xml;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"GetCustomUI FAILED: {ex}");
+                return null;
             }
         }
 
@@ -67,12 +112,20 @@ namespace MDNote
 
         public void OnRenderPage(IRibbonControl control)
         {
-            RibbonHandler.OnRenderPage(_oneNoteApp);
+            Log("OnRenderPage callback invoked");
+            try
+            {
+                RibbonHandler.OnRenderPage(_oneNoteApp);
+                Log("OnRenderPage completed");
+            }
+            catch (Exception ex) { Log($"OnRenderPage FAILED: {ex}"); }
         }
 
         public void OnRenderSelection(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("Render Selection", 2);
+            Log("OnRenderSelection callback invoked");
+            try { RibbonHandler.ShowStub("Render Selection", 2); }
+            catch (Exception ex) { Log($"OnRenderSelection FAILED: {ex}"); }
         }
 
         public void OnToggleLiveMode(IRibbonControl control, bool pressed)

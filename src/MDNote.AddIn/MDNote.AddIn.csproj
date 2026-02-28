@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <OutputType>Library</OutputType>
+    <RootNamespace>MDNote</RootNamespace>
+    <AssemblyName>MDNote.AddIn</AssemblyName>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>MDNote.snk</AssemblyOriginatorKeyFile>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- VS install path for Office PIA references; override via environment or Directory.Build.props -->
+    <VSInstallDir Condition="'$(VSInstallDir)' == ''">C:\Program Files\Microsoft Visual Studio\18\Insiders\</VSInstallDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Interop.Microsoft.Office.Interop.OneNote" Version="1.1.0.2" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="extensibility">
+      <HintPath>$(VSInstallDir)Common7\IDE\PublicAssemblies\extensibility.dll</HintPath>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="office">
+      <HintPath>$(VSInstallDir)Common7\IDE\ReferenceAssemblies\v4.0\Office15\Office.dll</HintPath>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Ribbon.xml">
+      <LogicalName>MDNote.Ribbon.xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MDNote.OneNote\MDNote.OneNote.csproj" />
+  </ItemGroup>
+
+</Project>

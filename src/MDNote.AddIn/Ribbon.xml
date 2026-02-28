@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<customUI
+  xmlns="http://schemas.microsoft.com/office/2009/07/customui"
+  onLoad="RibbonLoaded">
+  <ribbon>
+    <tabs>
+      <tab id="TabMDNote" label="MD Note" insertAfterMso="TabView">
+
+        <group id="grpRender" label="Render">
+          <button
+            id="btnRenderPage"
+            label="Render Page"
+            imageMso="Refresh"
+            size="large"
+            onAction="OnRenderPage"
+            keytip="R" />
+          <button
+            id="btnRenderSelection"
+            label="Render Selection"
+            imageMso="RefreshAll"
+            size="normal"
+            onAction="OnRenderSelection"
+            keytip="RS" />
+        </group>
+
+        <group id="grpEdit" label="Edit">
+          <toggleButton
+            id="btnLiveMode"
+            label="Live Mode"
+            imageMso="BlogOpenExisting"
+            size="large"
+            onAction="OnToggleLiveMode"
+            keytip="L" />
+          <button
+            id="btnToggleSource"
+            label="Toggle Source"
+            imageMso="ViewCode"
+            size="normal"
+            onAction="OnToggleSource"
+            keytip="TS" />
+        </group>
+
+        <group id="grpTransfer" label="Transfer">
+          <button
+            id="btnExportClipboard"
+            label="Export Clipboard"
+            imageMso="Copy"
+            size="large"
+            onAction="OnExportClipboard"
+            keytip="EC" />
+          <button
+            id="btnExportFile"
+            label="Export File"
+            imageMso="FileSaveAs"
+            size="normal"
+            onAction="OnExportFile"
+            keytip="EF" />
+          <button
+            id="btnImportMd"
+            label="Import MD"
+            imageMso="FileOpen"
+            size="normal"
+            onAction="OnImportMarkdown"
+            keytip="IM" />
+          <button
+            id="btnPasteRender"
+            label="Paste &amp; Render"
+            imageMso="PasteSpecial"
+            size="normal"
+            onAction="OnPasteRender"
+            keytip="PR" />
+        </group>
+
+        <group id="grpTools" label="Tools">
+          <button
+            id="btnInsertToc"
+            label="Insert TOC"
+            imageMso="TableOfContentsInsert"
+            size="large"
+            onAction="OnInsertToc"
+            keytip="T" />
+          <button
+            id="btnSettings"
+            label="Settings"
+            imageMso="ControlProperties"
+            size="normal"
+            onAction="OnOpenSettings"
+            keytip="S" />
+          <button
+            id="btnAbout"
+            label="About"
+            imageMso="Info"
+            size="normal"
+            onAction="OnShowAbout"
+            keytip="A" />
+        </group>
+
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

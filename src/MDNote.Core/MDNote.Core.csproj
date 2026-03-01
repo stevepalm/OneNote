@@ -7,4 +7,10 @@
     <AssemblyName>MDNote.Core</AssemblyName>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ColorCode.Core" Version="2.0.15" />
+    <PackageReference Include="ColorCode.HTML" Version="2.0.15" />
+    <PackageReference Include="Markdig" Version="1.0.1" />
+  </ItemGroup>
+
 </Project>

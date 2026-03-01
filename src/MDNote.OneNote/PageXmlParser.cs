@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using MDNote.Core.Models;
 
 namespace MDNote.OneNote
 {
@@ -101,6 +103,41 @@ namespace MDNote.OneNote
                 .Select(t => StripHtmlTags(t.Value));
 
             return string.Join("\n", texts);
+        }
+
+        /// <summary>
+        /// Extracts embedded image data from the page XML.
+        /// </summary>
+        public List<ImageInfo> GetImages()
+        {
+            var images = new List<ImageInfo>();
+            int index = 0;
+
+            foreach (var img in _page.Descendants(OneNs + "Image"))
+            {
+                var data = img.Element(OneNs + "Data")?.Value?.Trim();
+                if (string.IsNullOrEmpty(data))
+                    continue;
+
+                var callbackId = img.Element(OneNs + "CallbackID")
+                    ?.Attribute("callbackID")?.Value;
+                var format = img.Attribute("format")?.Value ?? "png";
+
+                var fileName = !string.IsNullOrEmpty(callbackId)
+                    ? Path.GetFileName(callbackId)
+                    : $"image-{index}.{format}";
+
+                images.Add(new ImageInfo
+                {
+                    Id = img.Attribute("objectID")?.Value ?? $"img-{index}",
+                    FileName = fileName,
+                    Data = System.Convert.FromBase64String(data),
+                    OriginalReference = callbackId
+                });
+                index++;
+            }
+
+            return images;
         }
 
         private static readonly Regex HtmlTagRegex = new Regex(

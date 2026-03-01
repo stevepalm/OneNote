@@ -11,5 +11,7 @@ namespace MDNote.OneNote
         string GetPagePlainText(string pageId);
         void UpdatePageContent(string xml);
         void NavigateToPage(string pageId);
+        string GetCurrentSectionId();
+        string CreateNewPage(string sectionId);
     }
 }

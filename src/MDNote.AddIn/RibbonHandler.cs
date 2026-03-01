@@ -35,6 +35,41 @@ namespace MDNote
             command.RenderSelection();
         }
 
+        public static void OnToggleSource(object oneNoteApp)
+        {
+            var interop = new OneNoteInterop(oneNoteApp);
+            var command = new ToggleSourceCommand(interop);
+            command.Execute();
+        }
+
+        public static void OnExportClipboard(object oneNoteApp)
+        {
+            var interop = new OneNoteInterop(oneNoteApp);
+            var command = new ExportCommand(interop);
+            command.ExportToClipboard();
+        }
+
+        public static void OnExportFile(object oneNoteApp)
+        {
+            var interop = new OneNoteInterop(oneNoteApp);
+            var command = new ExportCommand(interop);
+            command.ExportToFile();
+        }
+
+        public static void OnImportMarkdown(object oneNoteApp)
+        {
+            var interop = new OneNoteInterop(oneNoteApp);
+            var command = new ImportCommand(interop);
+            command.ImportMarkdownFile();
+        }
+
+        public static void OnPasteRender(object oneNoteApp)
+        {
+            var interop = new OneNoteInterop(oneNoteApp);
+            var command = new ImportCommand(interop);
+            command.PasteAndRender();
+        }
+
         /// <summary>
         /// Stub for features not yet implemented.
         /// </summary>

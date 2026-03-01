@@ -93,6 +93,24 @@ namespace MDNote.OneNote
             _app.NavigateTo(pageId);
         }
 
+        public string GetCurrentSectionId()
+        {
+            return _app.Windows.CurrentWindow?.CurrentSectionId;
+        }
+
+        public string CreateNewPage(string sectionId)
+        {
+            if (string.IsNullOrEmpty(sectionId))
+                return null;
+
+            return RetryOnBusy(() =>
+            {
+                _app.CreateNewPage(sectionId, out var newPageId,
+                    NewPageStyle.npsBlankPageWithTitle);
+                return newPageId;
+            });
+        }
+
         /// <summary>
         /// Retries a COM operation up to 3 times when OneNote reports busy.
         /// </summary>

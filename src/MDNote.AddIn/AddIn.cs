@@ -49,8 +49,8 @@ namespace MDNote
                 _hotkeyManager = new HotkeyManager();
                 _hotkeyManager.Register(
                     onRenderPage: () => RibbonHandler.OnRenderPage(_oneNoteApp),
-                    onExport: () => RibbonHandler.ShowStub("Export", 5),
-                    onToggleSource: () => RibbonHandler.ShowStub("Toggle Source", 5));
+                    onExport: () => RibbonHandler.OnExportClipboard(_oneNoteApp),
+                    onToggleSource: () => RibbonHandler.OnToggleSource(_oneNoteApp));
 
                 Log("OnConnection OK");
             }
@@ -65,6 +65,7 @@ namespace MDNote
             ref Array custom)
         {
             Log("OnDisconnection called");
+            ToggleSourceCommand.Reset();
             _hotkeyManager?.Dispose();
             _hotkeyManager = null;
 
@@ -146,27 +147,37 @@ namespace MDNote
 
         public void OnToggleSource(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("Toggle Source", 2);
+            Log("OnToggleSource callback invoked");
+            try { RibbonHandler.OnToggleSource(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnToggleSource FAILED: {ex}"); }
         }
 
         public void OnExportClipboard(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("Export Clipboard", 2);
+            Log("OnExportClipboard callback invoked");
+            try { RibbonHandler.OnExportClipboard(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnExportClipboard FAILED: {ex}"); }
         }
 
         public void OnExportFile(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("Export File", 2);
+            Log("OnExportFile callback invoked");
+            try { RibbonHandler.OnExportFile(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnExportFile FAILED: {ex}"); }
         }
 
         public void OnImportMarkdown(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("Import MD", 2);
+            Log("OnImportMarkdown callback invoked");
+            try { RibbonHandler.OnImportMarkdown(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnImportMarkdown FAILED: {ex}"); }
         }
 
         public void OnPasteRender(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("Paste & Render", 2);
+            Log("OnPasteRender callback invoked");
+            try { RibbonHandler.OnPasteRender(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnPasteRender FAILED: {ex}"); }
         }
 
         public void OnInsertToc(IRibbonControl control)

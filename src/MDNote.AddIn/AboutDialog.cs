@@ -19,7 +19,7 @@ namespace MDNote
             MinimizeBox = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(360, 310);
+            ClientSize = new Size(360, 360);
             BackColor = Color.FromArgb(30, 30, 30);
             ForeColor = Color.White;
 
@@ -57,6 +57,11 @@ namespace MDNote
             AddLabel("  Mermaid.js \u2014 Diagram support", 20, y, Color.FromArgb(160, 160, 160));
 
             y += 32;
+            AddLabel("Quality:", 20, y, Color.White, FontStyle.Bold);
+            y += 22;
+            AddLabel("  317 automated tests passing", 20, y, Color.FromArgb(100, 200, 100));
+
+            y += 28;
             AddLabel("System:", 20, y, Color.White, FontStyle.Bold);
             y += 22;
             AddLabel($"  Add-in: {addinPath}", 20, y, Color.FromArgb(140, 140, 140));
@@ -72,7 +77,7 @@ namespace MDNote
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9f),
                 Size = new Size(80, 30),
-                Location = new Point(140, 270),
+                Location = new Point(140, 320),
                 Cursor = Cursors.Hand
             };
             btnOk.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 80);

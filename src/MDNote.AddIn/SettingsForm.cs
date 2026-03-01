@@ -53,7 +53,6 @@ namespace MDNote
             BuildRenderingTab();
             BuildBehaviorTab();
             BuildExportTab();
-            BuildMermaidTab();
             BuildAboutTab();
 
             BuildBottomButtons();
@@ -179,25 +178,6 @@ namespace MDNote
             _tabs.TabPages.Add(tab);
         }
 
-        private void BuildMermaidTab()
-        {
-            var tab = CreateTab("Mermaid");
-
-            var label = new Label
-            {
-                Text = "Mermaid diagram settings \u2014 Coming Soon",
-                ForeColor = Color.FromArgb(160, 160, 160),
-                Font = new Font("Segoe UI", 11f, FontStyle.Italic),
-                AutoSize = false,
-                Size = new Size(360, 60),
-                Location = new Point(20, 80),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            tab.Controls.Add(label);
-
-            _tabs.TabPages.Add(tab);
-        }
-
         private void BuildAboutTab()
         {
             var tab = CreateTab("About");
@@ -231,10 +211,13 @@ namespace MDNote
             AddLabel(tab, "  Markdig \u2014 Markdown parsing", 16, y, Color.FromArgb(160, 160, 160));
             y += 18;
             AddLabel(tab, "  ColorCode \u2014 Syntax highlighting", 16, y, Color.FromArgb(160, 160, 160));
-            y += 18;
-            AddLabel(tab, "  Mermaid.js \u2014 Diagram support", 16, y, Color.FromArgb(160, 160, 160));
 
-            y += 32;
+            y += 28;
+            AddLabel(tab, "Quality:", 16, y);
+            y += 20;
+            AddLabel(tab, "  317 automated tests passing", 16, y, Color.FromArgb(100, 200, 100));
+
+            y += 28;
             AddLabel(tab, "System:", 16, y);
             y += 20;
             AddLabel(tab, $"  Add-in: {addinPath}", 16, y, Color.FromArgb(140, 140, 140));

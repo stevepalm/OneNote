@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  MD Note Installer — WiX v4
+  Installs the COM add-in for OneNote Desktop (Microsoft 365).
+  Runs regasm as a custom action for COM registration and
+  writes the OneNote add-in registry keys.
+
+  Build:
+    dotnet build src\MDNote.Setup -c Release -p:InstallerPlatform=x64
+    dotnet build src\MDNote.Setup -c Release -p:InstallerPlatform=x86
+
+  Silent install:
+    msiexec /i MDNote.msi /quiet
+
+  Upgrade:
+    msiexec /i MDNote.msi   (MSI major upgrade removes prior version first)
+
+  Uninstall:
+    msiexec /x MDNote.msi /quiet
+    — or via Add/Remove Programs
+-->
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <!-- UpgradeCode is permanent — never change after first release -->
+  <Package
+    Name="MD Note"
+    Manufacturer="MD Note"
+    Version="1.0.0.0"
+    UpgradeCode="B7E3F1A2-9C4D-4E5F-8A6B-1D2E3F4A5B6C"
+    Compressed="yes"
+    InstallerVersion="500">
+
+    <!-- Major upgrade: automatically removes previous versions -->
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of MD Note is already installed."
+      Schedule="afterInstallInitialize" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Launch conditions -->
+    <Launch
+      Condition="Installed OR ONENOTE_FOUND"
+      Message="OneNote Desktop (Microsoft 365) must be installed before installing MD Note." />
+
+    <!-- Detect OneNote via registry -->
+    <Property Id="ONENOTE_FOUND">
+      <RegistrySearch
+        Id="FindOneNote"
+        Root="HKLM"
+        Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\onenote.exe"
+        Type="raw" />
+    </Property>
+
+    <!-- Detect .NET Framework 4.8 -->
+    <Property Id="NETFRAMEWORK48">
+      <RegistrySearch
+        Id="FindNet48"
+        Root="HKLM"
+        Key="SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full"
+        Name="Release"
+        Type="raw" />
+    </Property>
+
+    <Launch
+      Condition="Installed OR (NETFRAMEWORK48 >= 528040)"
+      Message=".NET Framework 4.8 or later is required. Please install it from Microsoft and try again." />
+
+    <!-- Installation directory structure -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="MD Note">
+        <Directory Id="DIR_DOCS" Name="docs" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- ======================== -->
+    <!--  Main feature: Add-in    -->
+    <!-- ======================== -->
+    <Feature Id="MainFeature" Title="MD Note Add-in" Level="1">
+      <ComponentGroupRef Id="AddInFiles" />
+      <ComponentRef Id="RegistryEntries" />
+      <ComponentRef Id="DocFiles" />
+    </Feature>
+
+    <!-- ======================== -->
+    <!--  File components          -->
+    <!-- ======================== -->
+    <ComponentGroup Id="AddInFiles" Directory="INSTALLFOLDER">
+
+      <!-- Primary add-in DLL -->
+      <Component Id="AddInDll" Guid="D1A2B3C4-E5F6-7890-ABCD-EF1234567890">
+        <File Id="MDNote.AddIn.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\MDNote.AddIn.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- Core library -->
+      <Component Id="CoreDll" Guid="D2A2B3C4-E5F6-7890-ABCD-EF1234567891">
+        <File Id="MDNote.Core.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\MDNote.Core.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- OneNote interop wrapper -->
+      <Component Id="OneNoteDll" Guid="D3A2B3C4-E5F6-7890-ABCD-EF1234567892">
+        <File Id="MDNote.OneNote.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\MDNote.OneNote.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- Markdig -->
+      <Component Id="MarkdigDll" Guid="D4A2B3C4-E5F6-7890-ABCD-EF1234567893">
+        <File Id="Markdig.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\Markdig.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- ColorCode.Core -->
+      <Component Id="ColorCodeCoreDll" Guid="D5A2B3C4-E5F6-7890-ABCD-EF1234567894">
+        <File Id="ColorCode.Core.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\ColorCode.Core.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- ColorCode.HTML -->
+      <Component Id="ColorCodeHtmlDll" Guid="D6A2B3C4-E5F6-7890-ABCD-EF1234567895">
+        <File Id="ColorCode.HTML.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\ColorCode.HTML.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- Office interop -->
+      <Component Id="OneNoteInteropDll" Guid="D7A2B3C4-E5F6-7890-ABCD-EF1234567896">
+        <File Id="Interop.Microsoft.Office.Interop.OneNote.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\Interop.Microsoft.Office.Interop.OneNote.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- Extensibility PIA -->
+      <Component Id="ExtensibilityDll" Guid="D8A2B3C4-E5F6-7890-ABCD-EF1234567897">
+        <File Id="extensibility.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\extensibility.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- Office PIA -->
+      <Component Id="OfficeDll" Guid="D9A2B3C4-E5F6-7890-ABCD-EF1234567898">
+        <File Id="office.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\office.dll"
+              KeyPath="yes" />
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- ======================== -->
+    <!--  Documentation            -->
+    <!-- ======================== -->
+    <Component Id="DocFiles" Directory="DIR_DOCS" Guid="DAA2B3C4-E5F6-7890-ABCD-EF1234567899">
+      <File Id="quick_start.md" Source="$(var.SolutionDir)\docs\quick-start.md" KeyPath="yes" />
+      <File Id="deploy_guide.md" Source="$(var.SolutionDir)\docs\deploy-guide.md" />
+    </Component>
+
+    <!-- ==================================== -->
+    <!--  Registry: COM + OneNote add-in keys  -->
+    <!-- ==================================== -->
+    <Component Id="RegistryEntries" Directory="INSTALLFOLDER"
+               Guid="DBB2B3C4-E5F6-7890-ABCD-EF12345678A0">
+
+      <!-- ProgId → CLSID mapping -->
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\MDNote.AddIn">
+        <RegistryValue Type="string" Value="MDNote.AddIn" />
+        <RegistryKey Key="CLSID">
+          <RegistryValue Type="string" Value="{A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}" />
+        </RegistryKey>
+      </RegistryKey>
+
+      <!-- CLSID registration for .NET COM -->
+      <RegistryKey Root="HKLM"
+                   Key="SOFTWARE\Classes\CLSID\{A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}">
+        <RegistryValue Type="string" Value="MDNote.AddIn" />
+        <RegistryValue Name="AppID" Type="string"
+                       Value="{A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}" />
+
+        <RegistryKey Key="InprocServer32">
+          <RegistryValue Type="string" Value="mscoree.dll" />
+          <RegistryValue Name="ThreadingModel" Type="string" Value="Both" />
+          <RegistryValue Name="Class" Type="string" Value="MDNote.AddIn" />
+          <RegistryValue Name="Assembly" Type="string"
+                         Value="MDNote.AddIn, Version=0.1.0.0, Culture=neutral, PublicKeyToken=null" />
+          <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
+          <RegistryValue Name="CodeBase" Type="string" Value="[INSTALLFOLDER]MDNote.AddIn.dll" />
+        </RegistryKey>
+
+        <RegistryKey Key="ProgId">
+          <RegistryValue Type="string" Value="MDNote.AddIn" />
+        </RegistryKey>
+
+        <!-- .NET COM component category -->
+        <RegistryKey Key="Implemented Categories\{62C8FE65-4EBB-45e7-B440-6E39B2CDBF29}" />
+        <RegistryKey Key="Programmable" />
+      </RegistryKey>
+
+      <!-- AppID with DllSurrogate for out-of-process hosting -->
+      <RegistryKey Root="HKLM"
+                   Key="SOFTWARE\Classes\AppID\{A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}">
+        <RegistryValue Name="DllSurrogate" Type="string" Value="" />
+      </RegistryKey>
+
+      <!-- OneNote add-in registration (both versioned and unversioned) -->
+      <RegistryKey Root="HKLM"
+                   Key="SOFTWARE\Microsoft\Office\OneNote\AddIns\MDNote.AddIn">
+        <RegistryValue Name="FriendlyName" Type="string" Value="MD Note" />
+        <RegistryValue Name="Description" Type="string"
+                       Value="Markdown rendering for OneNote" />
+        <RegistryValue Name="LoadBehavior" Type="integer" Value="3" />
+        <RegistryValue Name="CommandLineSafe" Type="integer" Value="1" />
+      </RegistryKey>
+
+      <RegistryKey Root="HKLM"
+                   Key="SOFTWARE\Microsoft\Office\16.0\OneNote\AddIns\MDNote.AddIn">
+        <RegistryValue Name="FriendlyName" Type="string" Value="MD Note" />
+        <RegistryValue Name="Description" Type="string"
+                       Value="Markdown rendering for OneNote" />
+        <RegistryValue Name="LoadBehavior" Type="integer" Value="3" />
+        <RegistryValue Name="CommandLineSafe" Type="integer" Value="1" />
+      </RegistryKey>
+
+      <!-- Prevent OneNote from disabling the add-in -->
+      <RegistryKey Root="HKLM"
+                   Key="SOFTWARE\Microsoft\Office\OneNote\Resiliency\DoNotDisableAddinList">
+        <RegistryValue Name="MDNote.AddIn" Type="integer" Value="1" />
+      </RegistryKey>
+
+      <RegistryKey Root="HKLM"
+                   Key="SOFTWARE\Microsoft\Office\16.0\OneNote\Resiliency\DoNotDisableAddinList">
+        <RegistryValue Name="MDNote.AddIn" Type="integer" Value="1" />
+      </RegistryKey>
+
+    </Component>
+
+    <!-- ======================== -->
+    <!--  Custom actions           -->
+    <!-- ======================== -->
+
+    <!-- Kill OneNote before install/uninstall to release COM locks -->
+    <SetProperty Id="KillOneNote"
+                 Before="KillOneNote"
+                 Sequence="execute"
+                 Value="&quot;[SystemFolder]taskkill.exe&quot; /F /IM ONENOTE.EXE" />
+
+    <CustomAction Id="KillOneNote"
+                  DllEntry="WixQuietExec"
+                  Execute="deferred"
+                  BinaryRef="Wix4UtilCA_X86"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="KillOneNote" Before="InstallFiles" Condition="NOT Installed OR REMOVE" />
+    </InstallExecuteSequence>
+
+  </Package>
+
+</Wix>

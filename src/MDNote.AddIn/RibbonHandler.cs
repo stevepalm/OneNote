@@ -71,6 +71,18 @@ namespace MDNote
         }
 
         /// <summary>
+        /// Cycles paste-detection mode: Prompt → Auto → Off → Prompt.
+        /// </summary>
+        public static void OnOpenSettings(object oneNoteApp)
+        {
+            var current = MdNoteSettings.Current.PasteMode;
+            var next = (PasteMode)(((int)current + 1) % 3);
+            MdNoteSettings.Current.PasteMode = next;
+            MdNoteSettings.Current.Save();
+            NotificationHelper.ShowSuccess($"Paste mode: {next}");
+        }
+
+        /// <summary>
         /// Stub for features not yet implemented.
         /// </summary>
         public static void ShowStub(string featureName, int sessionNumber)

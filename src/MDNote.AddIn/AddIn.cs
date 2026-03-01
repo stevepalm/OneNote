@@ -20,6 +20,7 @@ namespace MDNote
         private IRibbonUI _ribbon;
         private object _oneNoteApp;
         private HotkeyManager _hotkeyManager;
+        private ClipboardMonitor _clipboardMonitor;
 
         private static void Log(string message)
         {
@@ -52,6 +53,10 @@ namespace MDNote
                     onExport: () => RibbonHandler.OnExportClipboard(_oneNoteApp),
                     onToggleSource: () => RibbonHandler.OnToggleSource(_oneNoteApp));
 
+                _clipboardMonitor = new ClipboardMonitor();
+                _clipboardMonitor.Start(
+                    onMarkdownDetected: (text) => PasteHandler.Handle(_oneNoteApp, text));
+
                 Log("OnConnection OK");
             }
             catch (Exception ex)
@@ -66,8 +71,11 @@ namespace MDNote
         {
             Log("OnDisconnection called");
             ToggleSourceCommand.Reset();
+            _clipboardMonitor?.Dispose();
+            _clipboardMonitor = null;
             _hotkeyManager?.Dispose();
             _hotkeyManager = null;
+            MdNoteSettings.Reset();
 
             if (_oneNoteApp != null)
             {
@@ -187,7 +195,9 @@ namespace MDNote
 
         public void OnOpenSettings(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("Settings", 4);
+            Log("OnOpenSettings callback invoked");
+            try { RibbonHandler.OnOpenSettings(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnOpenSettings FAILED: {ex}"); }
         }
 
         public void OnShowAbout(IRibbonControl control)

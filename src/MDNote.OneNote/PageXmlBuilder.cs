@@ -138,6 +138,35 @@ namespace MDNote.OneNote
         }
 
         /// <summary>
+        /// Sets a Meta element value. Updates existing if name matches, otherwise adds new.
+        /// </summary>
+        public PageXmlBuilder SetMeta(string name, string content)
+        {
+            var existing = _page.Elements(OneNs + "Meta")
+                .FirstOrDefault(m => m.Attribute("name")?.Value == name);
+
+            if (existing != null)
+            {
+                existing.SetAttributeValue("content", content ?? "");
+            }
+            else
+            {
+                AddMeta(name, content);
+            }
+
+            return this;
+        }
+
+        /// <summary>
+        /// Removes all Outline elements from the page.
+        /// </summary>
+        public PageXmlBuilder ClearOutlines()
+        {
+            _page.Elements(OneNs + "Outline").Remove();
+            return this;
+        }
+
+        /// <summary>
         /// Builds the final XML string for use with UpdatePageContent.
         /// </summary>
         public string Build()

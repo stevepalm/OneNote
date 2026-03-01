@@ -176,5 +176,66 @@ namespace MDNote.OneNote.Tests
             parser.GetOutlines()[0].HtmlContent.First()
                 .Should().Contain("Round trip content");
         }
+
+        // --- GetOutlinePlainText tests ---
+
+        [Fact]
+        public void GetOutlinePlainText_ReturnsOutlineTextOnly()
+        {
+            var parser = new PageXmlParser(SamplePageXml);
+            var text = parser.GetOutlinePlainText();
+
+            text.Should().Contain("First paragraph");
+            text.Should().Contain("Another outline");
+            text.Should().NotContain("Test Title");
+        }
+
+        [Fact]
+        public void GetOutlinePlainText_StripsHtmlTags()
+        {
+            var xml =
+                "<Page xmlns='http://schemas.microsoft.com/office/onenote/2013/onenote' ID='p1'>" +
+                "<Title><OE><T><![CDATA[Title]]></T></OE></Title>" +
+                "<Outline objectID='o1'>" +
+                "<OEChildren><OE><T><![CDATA[<span style=\"font-family:Calibri\">Hello World</span>]]></T></OE></OEChildren>" +
+                "</Outline></Page>";
+
+            var parser = new PageXmlParser(xml);
+            var text = parser.GetOutlinePlainText();
+
+            text.Should().Be("Hello World");
+            text.Should().NotContain("<span");
+        }
+
+        [Fact]
+        public void GetOutlinePlainText_NoOutlines_ReturnsEmpty()
+        {
+            var xml = "<Page xmlns='http://schemas.microsoft.com/office/onenote/2013/onenote' ID='p1'>" +
+                      "<Title><OE><T><![CDATA[Title Only]]></T></OE></Title></Page>";
+
+            var parser = new PageXmlParser(xml);
+            parser.GetOutlinePlainText().Should().BeEmpty();
+        }
+
+        [Fact]
+        public void GetOutlinePlainText_MultipleTElements_JoinsWithNewlines()
+        {
+            var xml =
+                "<Page xmlns='http://schemas.microsoft.com/office/onenote/2013/onenote' ID='p1'>" +
+                "<Outline objectID='o1'><OEChildren>" +
+                "<OE><T><![CDATA[Line One]]></T></OE>" +
+                "<OE><T><![CDATA[Line Two]]></T></OE>" +
+                "<OE><T><![CDATA[Line Three]]></T></OE>" +
+                "</OEChildren></Outline></Page>";
+
+            var parser = new PageXmlParser(xml);
+            var text = parser.GetOutlinePlainText();
+
+            text.Should().Contain("Line One");
+            text.Should().Contain("Line Two");
+            text.Should().Contain("Line Three");
+            // Lines should be separated
+            text.Split('\n').Should().HaveCount(3);
+        }
     }
 }

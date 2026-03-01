@@ -15,39 +15,24 @@ namespace MDNote
         private static extern IntPtr GetForegroundWindow();
 
         /// <summary>
-        /// Proof-of-life: Gets the current page title via COM interop
-        /// and displays it in a MessageBox.
+        /// Renders the entire active page from Markdown to OneNote rich text.
         /// </summary>
         public static void OnRenderPage(object oneNoteApp)
         {
-            try
-            {
-                var interop = new OneNoteInterop(oneNoteApp);
-                var pageId = interop.GetActivePageId();
+            var interop = new OneNoteInterop(oneNoteApp);
+            var command = new RenderCommand(interop);
+            command.RenderPage();
+        }
 
-                if (string.IsNullOrEmpty(pageId))
-                {
-                    ShowForegroundMessageBox(
-                        "No active page found.",
-                        "MD Note",
-                        MessageBoxIcon.Warning);
-                    return;
-                }
-
-                var title = interop.GetPageTitle(pageId);
-
-                ShowForegroundMessageBox(
-                    $"Page title: {title}\nPage ID: {pageId}",
-                    "MD Note — Render Page (Session 1)",
-                    MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                ShowForegroundMessageBox(
-                    $"Error: {ex.Message}",
-                    "MD Note — Error",
-                    MessageBoxIcon.Error);
-            }
+        /// <summary>
+        /// Renders only the selected text on the active page.
+        /// Falls back to full-page render if no selection is found.
+        /// </summary>
+        public static void OnRenderSelection(object oneNoteApp)
+        {
+            var interop = new OneNoteInterop(oneNoteApp);
+            var command = new RenderCommand(interop);
+            command.RenderSelection();
         }
 
         /// <summary>

@@ -301,5 +301,111 @@ namespace MDNote.OneNote.Tests
             var blocks = PageXmlBuilder.SplitHtmlBlocks(null);
             blocks.Should().HaveCount(1);
         }
+
+        // --- SetMeta tests ---
+
+        [Fact]
+        public void SetMeta_NewKey_AddsMetaElement()
+        {
+            var xml = new PageXmlBuilder("page-1")
+                .SetMeta("mykey", "myvalue")
+                .Build();
+            var page = XElement.Parse(xml);
+
+            var meta = page.Elements(OneNs + "Meta").Single();
+            meta.Attribute("name").Value.Should().Be("mykey");
+            meta.Attribute("content").Value.Should().Be("myvalue");
+        }
+
+        [Fact]
+        public void SetMeta_ExistingKey_UpdatesValue()
+        {
+            var xml = new PageXmlBuilder("page-1")
+                .AddMeta("key", "original")
+                .SetMeta("key", "updated")
+                .Build();
+            var page = XElement.Parse(xml);
+
+            page.Elements(OneNs + "Meta").Should().HaveCount(1);
+            page.Elements(OneNs + "Meta").Single()
+                .Attribute("content").Value.Should().Be("updated");
+        }
+
+        [Fact]
+        public void SetMeta_MixedAddAndSet_NoduplicatesForSameKey()
+        {
+            var xml = new PageXmlBuilder("page-1")
+                .SetMeta("a", "1")
+                .SetMeta("b", "2")
+                .SetMeta("a", "3")
+                .Build();
+            var page = XElement.Parse(xml);
+
+            page.Elements(OneNs + "Meta").Should().HaveCount(2);
+            page.Elements(OneNs + "Meta")
+                .First(m => m.Attribute("name").Value == "a")
+                .Attribute("content").Value.Should().Be("3");
+        }
+
+        [Fact]
+        public void SetMeta_PreservesElementOrder()
+        {
+            var xml = new PageXmlBuilder("page-1")
+                .SetPageTitle("Title")
+                .SetMeta("key", "val")
+                .AddOutline("<p>Content</p>")
+                .Build();
+            var page = XElement.Parse(xml);
+
+            var children = page.Elements().ToList();
+            var titleIdx = children.FindIndex(e => e.Name == OneNs + "Title");
+            var metaIdx = children.FindIndex(e => e.Name == OneNs + "Meta");
+            var outlineIdx = children.FindIndex(e => e.Name == OneNs + "Outline");
+
+            titleIdx.Should().BeLessThan(metaIdx);
+            metaIdx.Should().BeLessThan(outlineIdx);
+        }
+
+        // --- ClearOutlines tests ---
+
+        [Fact]
+        public void ClearOutlines_RemovesAllOutlines()
+        {
+            var xml = new PageXmlBuilder("page-1")
+                .AddOutline("<p>First</p>")
+                .AddOutline("<p>Second</p>")
+                .ClearOutlines()
+                .Build();
+            var page = XElement.Parse(xml);
+
+            page.Elements(OneNs + "Outline").Should().BeEmpty();
+        }
+
+        [Fact]
+        public void ClearOutlines_PreservesTitleAndMeta()
+        {
+            var xml = new PageXmlBuilder("page-1")
+                .SetPageTitle("Keep Me")
+                .AddMeta("key", "value")
+                .AddOutline("<p>Remove Me</p>")
+                .ClearOutlines()
+                .Build();
+            var page = XElement.Parse(xml);
+
+            page.Element(OneNs + "Title").Should().NotBeNull();
+            page.Elements(OneNs + "Meta").Should().HaveCount(1);
+            page.Elements(OneNs + "Outline").Should().BeEmpty();
+        }
+
+        [Fact]
+        public void ClearOutlines_EmptyPage_NoOp()
+        {
+            var xml = new PageXmlBuilder("page-1")
+                .ClearOutlines()
+                .Build();
+            var page = XElement.Parse(xml);
+
+            page.Elements(OneNs + "Outline").Should().BeEmpty();
+        }
     }
 }

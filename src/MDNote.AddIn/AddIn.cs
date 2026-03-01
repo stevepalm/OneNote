@@ -19,6 +19,7 @@ namespace MDNote
 
         private IRibbonUI _ribbon;
         private object _oneNoteApp;
+        private HotkeyManager _hotkeyManager;
 
         private static void Log(string message)
         {
@@ -44,6 +45,13 @@ namespace MDNote
             {
                 Log($"OnConnection called. ConnectMode={ConnectMode}");
                 _oneNoteApp = Application;
+
+                _hotkeyManager = new HotkeyManager();
+                _hotkeyManager.Register(
+                    onRenderPage: () => RibbonHandler.OnRenderPage(_oneNoteApp),
+                    onExport: () => RibbonHandler.ShowStub("Export", 5),
+                    onToggleSource: () => RibbonHandler.ShowStub("Toggle Source", 5));
+
                 Log("OnConnection OK");
             }
             catch (Exception ex)
@@ -57,6 +65,9 @@ namespace MDNote
             ref Array custom)
         {
             Log("OnDisconnection called");
+            _hotkeyManager?.Dispose();
+            _hotkeyManager = null;
+
             if (_oneNoteApp != null)
             {
                 Marshal.ReleaseComObject(_oneNoteApp);
@@ -124,7 +135,7 @@ namespace MDNote
         public void OnRenderSelection(IRibbonControl control)
         {
             Log("OnRenderSelection callback invoked");
-            try { RibbonHandler.ShowStub("Render Selection", 2); }
+            try { RibbonHandler.OnRenderSelection(_oneNoteApp); }
             catch (Exception ex) { Log($"OnRenderSelection FAILED: {ex}"); }
         }
 

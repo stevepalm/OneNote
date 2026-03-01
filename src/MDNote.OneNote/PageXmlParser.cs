@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace MDNote.OneNote
@@ -86,6 +88,31 @@ namespace MDNote.OneNote
                 .ToDictionary(
                     m => m.Attribute("name")?.Value ?? "",
                     m => m.Attribute("content")?.Value ?? "");
+        }
+
+        /// <summary>
+        /// Extracts plain text from all outline elements, stripping HTML tags.
+        /// Does NOT include title text.
+        /// </summary>
+        public string GetOutlinePlainText()
+        {
+            var texts = _page.Elements(OneNs + "Outline")
+                .Descendants(OneNs + "T")
+                .Select(t => StripHtmlTags(t.Value));
+
+            return string.Join("\n", texts);
+        }
+
+        private static readonly Regex HtmlTagRegex = new Regex(
+            @"<[^>]+>", RegexOptions.Compiled);
+
+        private static string StripHtmlTags(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return string.Empty;
+
+            var stripped = HtmlTagRegex.Replace(input, "");
+            return WebUtility.HtmlDecode(stripped).Trim();
         }
 
         private static double ParseDouble(string value)

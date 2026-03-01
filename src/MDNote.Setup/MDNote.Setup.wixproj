@@ -1,12 +1,18 @@
-<Project Sdk="WixToolset.Sdk/4.0">
+<Project Sdk="WixToolset.Sdk/5.0">
 
   <PropertyGroup>
     <OutputName>MDNote</OutputName>
     <InstallerPlatform>x64</InstallerPlatform>
+    <!-- Define SolutionDir for WiX preprocessor (repo root) -->
+    <DefineConstants>SolutionDir=$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MDNote.AddIn\MDNote.AddIn.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.0" />
   </ItemGroup>
 
 </Project>

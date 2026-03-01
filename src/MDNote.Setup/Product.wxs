@@ -21,7 +21,8 @@
     — or via Add/Remove Programs
 -->
 
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
   <!-- UpgradeCode is permanent — never change after first release -->
   <Package
@@ -67,12 +68,20 @@
       Condition="Installed OR (NETFRAMEWORK48 >= 528040)"
       Message=".NET Framework 4.8 or later is required. Please install it from Microsoft and try again." />
 
-    <!-- Installation directory structure -->
+    <!-- Installation directory: Program Files (x64) or Program Files (x86) -->
+    <?if $(sys.BUILDARCH) = x64 ?>
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="MD Note">
         <Directory Id="DIR_DOCS" Name="docs" />
       </Directory>
     </StandardDirectory>
+    <?else ?>
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="INSTALLFOLDER" Name="MD Note">
+        <Directory Id="DIR_DOCS" Name="docs" />
+      </Directory>
+    </StandardDirectory>
+    <?endif ?>
 
     <!-- ======================== -->
     <!--  Main feature: Add-in    -->
@@ -239,26 +248,13 @@
 
     </Component>
 
-    <!-- ======================== -->
-    <!--  Custom actions           -->
-    <!-- ======================== -->
-
-    <!-- Kill OneNote before install/uninstall to release COM locks -->
-    <SetProperty Id="KillOneNote"
-                 Before="KillOneNote"
-                 Sequence="execute"
-                 Value="&quot;[SystemFolder]taskkill.exe&quot; /F /IM ONENOTE.EXE" />
-
-    <CustomAction Id="KillOneNote"
-                  DllEntry="WixQuietExec"
-                  Execute="deferred"
-                  BinaryRef="Wix4UtilCA_X86"
-                  Impersonate="no"
-                  Return="ignore" />
-
-    <InstallExecuteSequence>
-      <Custom Action="KillOneNote" Before="InstallFiles" Condition="NOT Installed OR REMOVE" />
-    </InstallExecuteSequence>
+    <!-- Close OneNote before install/uninstall to release COM locks -->
+    <util:CloseApplication Id="CloseOneNote"
+                           Target="ONENOTE.EXE"
+                           RebootPrompt="no"
+                           CloseMessage="yes"
+                           Description="OneNote must be closed before installing MD Note."
+                           TerminateProcess="1" />
 
   </Package>
 

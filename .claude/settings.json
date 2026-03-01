@@ -1,25 +1,47 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git *)",
-      "Bash(dotnet *)",
-      "Bash(powershell *)",
-      "Bash(find *)",
-      "Bash(ls *)",
-      "Bash(mkdir *)",
-      "Bash(rm *)",
+      // Reading files and directories
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(echo:*)",
+      "Bash(wc:*)",
+      "Bash(dir:*)",
+      "Bash(test:*)",
+      "Bash(printf:*)",
+
+      // Read-only git operations
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)",
+
+      // Read-only GitHub CLI
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+
+      // .NET Framework tooling (COM add-in specific)
       "Bash(\"*sn.exe*\")",
       "Bash(\"*RegAsm.exe*\")",
       "Bash(\"*ildasm.exe*\")",
-      "Read",
-      "Edit",
-      "Write",
-      "Glob",
-      "Grep",
-      "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:www.nuget.org)",
-      "WebSearch"
+
+      // OneNote add-in reference domains
+      "WebFetch(domain:onemoreaddin.com)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:getonetastic.com)",
+      "WebFetch(domain:elbruno.com)",
+      "WebFetch(domain:www.toughdev.com)"
+    ],
+    "deny": [
+      // Destructive operations
+      "Bash(rm -rf /)",
+      "Bash(rm -rf *)",
+      "Bash(rmdir *)"
     ]
   }
 }

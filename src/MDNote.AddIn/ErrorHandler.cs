@@ -36,7 +36,8 @@ namespace MDNote
         public static void HandleError(string userMessage, Exception ex)
         {
             LogError(userMessage, ex);
-            NotificationHelper.ShowError(userMessage);
+            var detail = ex != null ? $"\n\n{ex.GetType().Name}: {ex.Message}" : "";
+            NotificationHelper.ShowError(userMessage + detail);
         }
 
         private static void WriteLog(string level, string message)

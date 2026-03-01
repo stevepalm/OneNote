@@ -24,7 +24,44 @@ namespace MDNote
 
         public static void ShowError(string message, int durationMs = 4000)
         {
-            Show(message, Color.FromArgb(198, 40, 40), durationMs);
+            try
+            {
+                if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
+                {
+                    ShowErrorMessageBox(message);
+                }
+                else
+                {
+                    var thread = new Thread(() => ShowErrorMessageBox(message));
+                    thread.SetApartmentState(ApartmentState.STA);
+                    thread.IsBackground = true;
+                    thread.Start();
+                }
+            }
+            catch
+            {
+                // Never crash the add-in over a notification failure
+            }
+        }
+
+        private static void ShowErrorMessageBox(string message)
+        {
+            try
+            {
+                var ownerHandle = GetForegroundWindow();
+                var owner = new NativeWindow();
+                try
+                {
+                    owner.AssignHandle(ownerHandle);
+                    MessageBox.Show(owner, message, "MD Note",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    owner.ReleaseHandle();
+                }
+            }
+            catch { }
         }
 
         private static void Show(string message, Color bgColor, int durationMs)

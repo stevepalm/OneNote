@@ -53,14 +53,14 @@ namespace MDNote
                 }
 
                 var parser = new PageXmlParser(pageXml);
-                var storedSource = parser.GetMetaValue(MarkdownSourceStorage.MetaSource);
+                var storedSource = parser.GetStoredMarkdownSource();
 
                 string markdown;
 
                 if (!string.IsNullOrEmpty(storedSource))
                 {
                     // Re-render from stored source
-                    markdown = MarkdownSourceStorage.DecodeSource(storedSource);
+                    markdown = storedSource;
                     ErrorHandler.Log("Re-rendering from stored markdown source.");
                 }
                 else
@@ -194,20 +194,21 @@ namespace MDNote
                 var outlineId = selectedOutline.Attribute("objectID")?.Value
                                 ?? selectedOutline.Attribute("ID")?.Value;
 
-                // Store source in page metadata before overwriting
-                var parser = new PageXmlParser(pageXml);
-                if (string.IsNullOrEmpty(parser.GetMetaValue(MarkdownSourceStorage.MetaSource)))
-                {
-                    // Store the full page text as source on first render
-                    var fullText = parser.GetOutlinePlainText();
-                    StoreSourceMeta(pageId, pageXml, fullText);
-                }
+                // Source is now stored inline in the rendered outline by PageWriter,
+                // so no separate metadata call is needed.
 
                 var converter = new MarkdownConverter();
                 var result = converter.Convert(selectedText, SettingsManager.Current.ToConversionOptions());
 
+                var htmlConverter = new HtmlToOneNoteConverter();
+                var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
+
+                // Embed source in the outline content
+                var encoded = MarkdownSourceStorage.EncodeSource(selectedText);
+                var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(encoded);
+
                 var writer = new PageWriter(_interop);
-                writer.UpdateOutline(pageId, outlineId, result.Html);
+                writer.UpdateOutline(pageId, outlineId, oneNoteHtml + sourceTag);
 
                 NotificationHelper.ShowSuccess("Selection rendered");
             }
@@ -215,15 +216,6 @@ namespace MDNote
             {
                 ErrorHandler.HandleError("Selection render failed. Your content is safe.", ex);
             }
-        }
-
-        private void StoreSourceMeta(string pageId, string currentXml, string markdown)
-        {
-            var builder = PageXmlBuilder.FromPageXml(currentXml);
-            var metaEntries = MarkdownSourceStorage.CreateMetaEntries(markdown);
-            foreach (var entry in metaEntries)
-                builder.SetMeta(entry.Key, entry.Value);
-            _interop.UpdatePageContent(builder.Build());
         }
 
         private static string StripHtmlTags(string input)

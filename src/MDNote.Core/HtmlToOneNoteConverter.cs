@@ -29,6 +29,12 @@ namespace MDNote.Core
             @"<pre><code>([\s\S]*?)</code></pre>",
             RegexOptions.Compiled);
 
+        // Inline <code> — remaining after pre/code blocks are converted to tables.
+        // OneNote does not support <code> in CDATA; convert to styled <span>.
+        private static readonly Regex InlineCodeRegex = new Regex(
+            @"<code(?:\s[^>]*)?>([^<]*?)</code>",
+            RegexOptions.Compiled);
+
         // Blockquotes
         private static readonly Regex BlockquoteRegex = new Regex(
             @"<blockquote>([\s\S]*?)</blockquote>",
@@ -166,7 +172,12 @@ namespace MDNote.Core
                 return _codeBlockRenderer.RenderCodeBlockAsTable(code, null);
             });
 
-            // 4. Blockquotes — may be nested, process iteratively with increasing indent
+            // 4. Inline <code> → styled <span> (all <pre><code> blocks are gone by now)
+            html = InlineCodeRegex.Replace(html,
+                "<span style=\"font-family:Consolas,'Courier New',monospace;" +
+                "font-size:10pt;background-color:#f0f0f0;padding:1px 4px\">$1</span>");
+
+            // 5. Blockquotes — may be nested, process iteratively with increasing indent
             int blockquoteDepth = 0;
             while (BlockquoteRegex.IsMatch(html))
             {
@@ -183,20 +194,20 @@ namespace MDNote.Core
                 blockquoteDepth++;
             }
 
-            // 5. Horizontal rules
+            // 6. Horizontal rules
             html = HrRegex.Replace(html, "<p style=\"border-bottom:1px solid #ccc\">&nbsp;</p>");
 
-            // 6. Checkboxes (checked first to avoid double-matching) — with NBSP spacing
+            // 7. Checkboxes (checked first to avoid double-matching) — with NBSP spacing
             html = CheckedBoxRegex.Replace(html, "\u2611\u00A0");
             html = UncheckedBoxRegex.Replace(html, "\u2610\u00A0");
 
-            // 7. Mark/highlight
+            // 8. Mark/highlight
             html = MarkRegex.Replace(html, "<span style=\"background-color:#ffff00\">$1</span>");
 
-            // 8. Footnote references — styled superscript
+            // 9. Footnote references — styled superscript
             html = FootnoteRefRegex.Replace(html, "<sup style=\"font-size:8pt;color:#4a9eff\">[$1]</sup>");
 
-            // 9. Footnote section — styled container
+            // 10. Footnote section — styled container
             html = FootnoteSectionRegex.Replace(html, match =>
             {
                 var inner = match.Groups[1].Value;
@@ -206,7 +217,7 @@ namespace MDNote.Core
                        "<span style=\"font-weight:bold\">Footnotes</span></p>" + inner;
             });
 
-            // 10. Definition lists — convert <dl>/<dt>/<dd> to styled paragraphs
+            // 11. Definition lists — convert <dl>/<dt>/<dd> to styled paragraphs
             html = DlRegex.Replace(html, match =>
             {
                 var inner = match.Groups[1].Value;
@@ -215,7 +226,7 @@ namespace MDNote.Core
                 return inner;
             });
 
-            // 11. Headings — add font-size styling
+            // 12. Headings — add font-size styling
             html = HeadingRegex.Replace(html, match =>
             {
                 var level = int.Parse(match.Groups[1].Value);
@@ -225,14 +236,14 @@ namespace MDNote.Core
                 return $"<p style=\"{style}\"{attrs}>{content}</p>";
             });
 
-            // 12. Strip <thead>/<tbody> (OneNote doesn't support them)
+            // 13. Strip <thead>/<tbody> (OneNote doesn't support them)
             html = TheadTbodyRegex.Replace(html, "");
 
-            // 13. Tables — add border styles if not already present
+            // 14. Tables — add border styles if not already present
             html = TableOpenRegex.Replace(html, "<table style=\"border-collapse:collapse;margin:8px 0\"$1>");
             html = TdOpenRegex.Replace(html, "<td style=\"border:1px solid #ccc;padding:6px 10px\"$1>");
 
-            // 14. <th> → <td> with bold + header bottom border
+            // 15. <th> → <td> with bold + header bottom border
             //     First handle <th> with existing style (preserves text-align from Markdig)
             html = ThWithStyleRegex.Replace(html, match =>
             {

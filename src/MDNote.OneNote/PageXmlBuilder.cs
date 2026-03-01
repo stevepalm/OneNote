@@ -41,6 +41,17 @@ namespace MDNote.OneNote
             _page = page;
         }
 
+        // Elements that UpdatePageContent does not accept.
+        // Its schema only allows: Title?, (Outline|Image|InkDrawing|InsertedFile|MediaFile)*.
+        // All other elements (Meta, TagDef, QuickStyleDef, PageSettings, etc.)
+        // are preserved by OneNote on the server side — omitting them is safe.
+        private static readonly HashSet<string> StrippedElements =
+            new HashSet<string>
+            {
+                "TagDef", "QuickStyleDef", "XPSFile",
+                "Meta", "MediaPlaylist", "MeetingInfo", "PageSettings"
+            };
+
         /// <summary>
         /// Creates a builder from existing page XML (for update scenarios like ReplaceOutline).
         /// </summary>
@@ -56,6 +67,15 @@ namespace MDNote.OneNote
                 .Attributes("isSetByUser").ToList())
             {
                 attr.Remove();
+            }
+
+            // Strip elements we don't modify. UpdatePageContent is a merge —
+            // omitting them preserves them on the page while avoiding schema
+            // validation errors from GetPageContent's non-standard element order.
+            foreach (var el in page.Elements()
+                .Where(e => StrippedElements.Contains(e.Name.LocalName)).ToList())
+            {
+                el.Remove();
             }
 
             return new PageXmlBuilder(page);
@@ -78,13 +98,14 @@ namespace MDNote.OneNote
         }
 
         // OneNote Page schema element order — Meta must appear after these:
+        // (TagDef, QuickStyleDef, XPSFile are stripped in FromPageXml but kept
+        // here for correctness if elements are ever added manually)
         private static readonly string[] BeforeMeta =
             { "Title", "TagDef", "QuickStyleDef", "XPSFile" };
 
-        // ... and before these:
+        // ... and before these (content elements):
         private static readonly string[] AfterMeta =
-            { "MediaPlaylist", "MeetingInfo", "PageSettings",
-              "Outline", "Image", "InkDrawing", "InsertedFile", "MediaFile" };
+            { "Outline", "Image", "InkDrawing", "InsertedFile", "MediaFile" };
 
         /// <summary>
         /// Adds a Meta element in the correct schema position.
@@ -275,12 +296,69 @@ namespace MDNote.OneNote
             return false;
         }
 
+        // OneNote Page schema element order for UpdatePageContent validation.
+        // GetPageContent may return elements out of this order, so we
+        // must normalize before sending back via UpdatePageContent.
+        private static readonly string[] SchemaOrder =
+        {
+            "Title", "TagDef", "QuickStyleDef", "XPSFile", "Meta",
+            "MediaPlaylist", "MeetingInfo", "PageSettings",
+            "Outline", "Image", "InkDrawing", "InsertedFile", "MediaFile"
+        };
+
         /// <summary>
         /// Builds the final XML string for use with UpdatePageContent.
+        /// Normalizes child element order to match the OneNote schema,
+        /// since GetPageContent may return elements in non-schema order.
         /// </summary>
         public string Build()
         {
+            NormalizeElementOrder();
             return _page.ToString(SaveOptions.DisableFormatting);
+        }
+
+        private void NormalizeElementOrder()
+        {
+            var children = _page.Elements().ToList();
+            if (children.Count <= 1)
+                return;
+
+            var orderMap = new Dictionary<string, int>();
+            for (int i = 0; i < SchemaOrder.Length; i++)
+                orderMap[SchemaOrder[i]] = i;
+
+            // Unknown elements sort to the end (after MediaFile)
+            int unknownOrder = SchemaOrder.Length;
+
+            var sorted = children
+                .OrderBy(e =>
+                {
+                    var localName = e.Name.LocalName;
+                    return orderMap.TryGetValue(localName, out var idx)
+                        ? idx
+                        : unknownOrder;
+                })
+                .ToList();
+
+            // Only rewrite if order actually changed
+            bool orderChanged = false;
+            for (int i = 0; i < children.Count; i++)
+            {
+                if (children[i] != sorted[i])
+                {
+                    orderChanged = true;
+                    break;
+                }
+            }
+
+            if (!orderChanged)
+                return;
+
+            foreach (var child in children)
+                child.Remove();
+
+            foreach (var child in sorted)
+                _page.Add(child);
         }
 
         // Regex to extract table rows

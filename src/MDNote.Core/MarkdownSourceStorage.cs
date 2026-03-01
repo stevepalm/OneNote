@@ -1,12 +1,14 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MDNote.Core
 {
     /// <summary>
-    /// Handles encoding/decoding of markdown source for round-trip storage
-    /// in OneNote page Meta elements.
+    /// Handles encoding/decoding of markdown source for round-trip storage.
+    /// Source is stored as a hidden HTML span inside the rendered Outline,
+    /// because UpdatePageContent does not accept Meta elements.
+    /// Falls back to reading Meta for backwards compatibility.
     /// </summary>
     public static class MarkdownSourceStorage
     {
@@ -14,6 +16,14 @@ namespace MDNote.Core
         public const string MetaSource = "md-note-source";
         public const string MetaVersion = "md-note-version";
         public const string MetaRendered = "md-note-rendered";
+
+        // Hidden span tag used to embed source in Outline CDATA
+        private const string SourceTagPrefix = "<span data-md-source=\"";
+        private const string SourceTagSuffix = "\" style=\"display:none\"></span>";
+
+        private static readonly Regex SourceTagRegex = new Regex(
+            @"<span\s+data-md-source=""([^""]+)""\s+style=""display:none""></span>",
+            RegexOptions.Compiled);
 
         public static string EncodeSource(string markdown)
         {
@@ -31,14 +41,37 @@ namespace MDNote.Core
             return Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
         }
 
-        public static Dictionary<string, string> CreateMetaEntries(string markdown)
+        /// <summary>
+        /// Builds the hidden HTML span that embeds the encoded source
+        /// inside the Outline's CDATA content.
+        /// </summary>
+        public static string BuildHiddenSourceHtml(string encodedSource)
         {
-            return new Dictionary<string, string>
-            {
-                { MetaSource, EncodeSource(markdown) },
-                { MetaVersion, CurrentVersion },
-                { MetaRendered, DateTime.UtcNow.ToString("o") }
-            };
+            return SourceTagPrefix + encodedSource + SourceTagSuffix;
+        }
+
+        /// <summary>
+        /// Extracts encoded source from HTML content containing the hidden span.
+        /// Returns null if not found.
+        /// </summary>
+        public static string ExtractHiddenSource(string html)
+        {
+            if (string.IsNullOrEmpty(html))
+                return null;
+
+            var match = SourceTagRegex.Match(html);
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        /// <summary>
+        /// Strips the hidden source span from HTML content.
+        /// </summary>
+        public static string StripHiddenSource(string html)
+        {
+            if (string.IsNullOrEmpty(html))
+                return html;
+
+            return SourceTagRegex.Replace(html, "");
         }
     }
 }

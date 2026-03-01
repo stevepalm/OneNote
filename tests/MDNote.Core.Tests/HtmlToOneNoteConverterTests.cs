@@ -225,6 +225,27 @@ public class HtmlToOneNoteConverterTests
     }
 
     [Fact]
+    public void ConvertForOneNote_InlineCode_ConvertedToStyledSpan()
+    {
+        var html = "<p>Use <code>server-settings</code> for the key</p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("Consolas");
+        result.Should().Contain("server-settings");
+        result.Should().NotContain("<code>");
+        result.Should().NotContain("</code>");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_MultipleInlineCodes_AllConverted()
+    {
+        var html = "<p>Set <code>key</code> and <code>value</code></p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<code>");
+        result.Should().Contain("key");
+        result.Should().Contain("value");
+    }
+
+    [Fact]
     public void ConvertForOneNote_PassthroughElements_Preserved()
     {
         var html = "<p><strong>bold</strong> <em>italic</em> <a href=\"#\">link</a></p>";

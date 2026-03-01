@@ -108,10 +108,10 @@ namespace MDNote
                 if (string.IsNullOrEmpty(pageXml)) return;
 
                 var parser = new PageXmlParser(pageXml);
-                var storedSource = parser.GetMetaValue(MarkdownSourceStorage.MetaSource);
+                var storedMarkdown = parser.GetStoredMarkdownSource();
 
-                if (!string.IsNullOrEmpty(storedSource))
-                    _lastSourceHash = storedSource.GetHashCode().ToString();
+                if (!string.IsNullOrEmpty(storedMarkdown))
+                    _lastSourceHash = storedMarkdown.GetHashCode().ToString();
                 else
                     _lastTextHash = parser.GetOutlinePlainText().GetHashCode().ToString();
             }
@@ -155,18 +155,18 @@ namespace MDNote
                 if (viewMode == "source")
                     return;
 
-                var storedSource = parser.GetMetaValue(MarkdownSourceStorage.MetaSource);
+                var storedMarkdown = parser.GetStoredMarkdownSource();
 
-                if (!string.IsNullOrEmpty(storedSource))
+                if (!string.IsNullOrEmpty(storedMarkdown))
                 {
                     // Page has stored markdown source — check if it changed
-                    var hash = storedSource.GetHashCode().ToString();
+                    var hash = storedMarkdown.GetHashCode().ToString();
                     if (hash == _lastSourceHash)
                         return;
 
                     _lastSourceHash = hash;
 
-                    var markdown = MarkdownSourceStorage.DecodeSource(storedSource);
+                    var markdown = storedMarkdown;
                     var options = SettingsManager.Current.ToConversionOptions();
                     var converter = new MarkdownConverter();
                     var result = converter.Convert(markdown, options);
@@ -205,9 +205,9 @@ namespace MDNote
                     if (!string.IsNullOrEmpty(newXml))
                     {
                         var newParser = new PageXmlParser(newXml);
-                        var newSource = newParser.GetMetaValue(MarkdownSourceStorage.MetaSource);
-                        if (!string.IsNullOrEmpty(newSource))
-                            _lastSourceHash = newSource.GetHashCode().ToString();
+                        var newMarkdown = newParser.GetStoredMarkdownSource();
+                        if (!string.IsNullOrEmpty(newMarkdown))
+                            _lastSourceHash = newMarkdown.GetHashCode().ToString();
                     }
 
                     ErrorHandler.Log("Live mode: auto-rendered new markdown.");

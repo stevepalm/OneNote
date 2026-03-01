@@ -33,18 +33,19 @@ namespace MDNote.OneNote
             if (!string.IsNullOrEmpty(result.Title))
                 builder.SetPageTitle(result.Title);
 
-            // Upsert metadata (won't create duplicates on re-render)
-            var metaEntries = MarkdownSourceStorage.CreateMetaEntries(markdownSource);
-            foreach (var entry in metaEntries)
-                builder.SetMeta(entry.Key, entry.Value);
-
             var converter = new HtmlToOneNoteConverter();
             var oneNoteHtml = converter.ConvertForOneNote(result.Html);
+
+            // Embed markdown source as a hidden element in the rendered HTML.
+            // UpdatePageContent does not accept Meta elements, so we store
+            // the source inline where it survives round-trip re-renders.
+            var encoded = MarkdownSourceStorage.EncodeSource(markdownSource);
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(encoded);
 
             // Replace content of existing outline in-place (preserves objectID).
             // UpdatePageContent is a merge — removing outlines from XML doesn't
             // delete them; we must replace their content to avoid duplicates.
-            builder.ReplaceOrAddRenderedOutline(oneNoteHtml);
+            builder.ReplaceOrAddRenderedOutline(oneNoteHtml + sourceTag);
 
             _interop.UpdatePageContent(builder.Build());
         }

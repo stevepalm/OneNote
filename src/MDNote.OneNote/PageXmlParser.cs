@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using MDNote.Core;
 using MDNote.Core.Models;
 
 namespace MDNote.OneNote
@@ -90,6 +91,29 @@ namespace MDNote.OneNote
                 .ToDictionary(
                     m => m.Attribute("name")?.Value ?? "",
                     m => m.Attribute("content")?.Value ?? "");
+        }
+
+        /// <summary>
+        /// Gets the stored markdown source. Checks the hidden HTML span first
+        /// (new storage), then falls back to Meta element (legacy).
+        /// </summary>
+        public string GetStoredMarkdownSource()
+        {
+            // New: extract from hidden span in Outline content
+            foreach (var t in _page.Elements(OneNs + "Outline")
+                .Descendants(OneNs + "T"))
+            {
+                var encoded = MarkdownSourceStorage.ExtractHiddenSource(t.Value);
+                if (encoded != null)
+                    return MarkdownSourceStorage.DecodeSource(encoded);
+            }
+
+            // Legacy: read from Meta element
+            var metaValue = GetMetaValue(MarkdownSourceStorage.MetaSource);
+            if (!string.IsNullOrEmpty(metaValue))
+                return MarkdownSourceStorage.DecodeSource(metaValue);
+
+            return null;
         }
 
         /// <summary>

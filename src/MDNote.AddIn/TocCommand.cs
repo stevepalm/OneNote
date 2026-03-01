@@ -37,16 +37,14 @@ namespace MDNote
                 }
 
                 var parser = new PageXmlParser(pageXml);
-                var storedSource = parser.GetMetaValue(MarkdownSourceStorage.MetaSource);
+                var markdown = parser.GetStoredMarkdownSource();
 
-                if (string.IsNullOrEmpty(storedSource))
+                if (string.IsNullOrEmpty(markdown))
                 {
                     NotificationHelper.ShowWarning(
                         "No stored markdown source. Render the page first (F5).");
                     return;
                 }
-
-                var markdown = MarkdownSourceStorage.DecodeSource(storedSource);
 
                 // Build options with TOC enabled
                 var options = SettingsManager.Current.ToConversionOptions();

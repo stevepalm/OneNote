@@ -30,12 +30,7 @@ namespace MDNote.OneNote
             if (string.IsNullOrEmpty(xml))
                 return null;
 
-            var parser = new PageXmlParser(xml);
-            var encoded = parser.GetMetaValue(MarkdownSourceStorage.MetaSource);
-            if (string.IsNullOrEmpty(encoded))
-                return null;
-
-            return MarkdownSourceStorage.DecodeSource(encoded);
+            return new PageXmlParser(xml).GetStoredMarkdownSource();
         }
 
         public bool HasStoredSource(string pageId)
@@ -44,9 +39,7 @@ namespace MDNote.OneNote
             if (string.IsNullOrEmpty(xml))
                 return false;
 
-            var parser = new PageXmlParser(xml);
-            return !string.IsNullOrEmpty(
-                parser.GetMetaValue(MarkdownSourceStorage.MetaSource));
+            return new PageXmlParser(xml).GetStoredMarkdownSource() != null;
         }
 
         public string GetPageTitle(string pageId)

@@ -73,35 +73,44 @@ public class MarkdownSourceStorageTests
     }
 
     [Fact]
-    public void CreateMetaEntries_ContainsAllKeys()
+    public void BuildHiddenSourceHtml_ContainsEncodedData()
     {
-        var meta = MarkdownSourceStorage.CreateMetaEntries("# Test");
-        meta.Should().ContainKey("md-note-source");
-        meta.Should().ContainKey("md-note-version");
-        meta.Should().ContainKey("md-note-rendered");
-        meta.Should().HaveCount(3);
+        var encoded = MarkdownSourceStorage.EncodeSource("# Test");
+        var html = MarkdownSourceStorage.BuildHiddenSourceHtml(encoded);
+        html.Should().Contain("data-md-source=");
+        html.Should().Contain("display:none");
+        html.Should().Contain(encoded);
     }
 
     [Fact]
-    public void CreateMetaEntries_VersionIsCurrentVersion()
-    {
-        var meta = MarkdownSourceStorage.CreateMetaEntries("# Test");
-        meta["md-note-version"].Should().Be(MarkdownSourceStorage.CurrentVersion);
-    }
-
-    [Fact]
-    public void CreateMetaEntries_RenderedIsIso8601()
-    {
-        var meta = MarkdownSourceStorage.CreateMetaEntries("# Test");
-        meta["md-note-rendered"].Should().Contain("T");
-    }
-
-    [Fact]
-    public void CreateMetaEntries_SourceIsDecodable()
+    public void ExtractHiddenSource_RoundTrips()
     {
         var markdown = "# Test\n\nParagraph with **bold**";
-        var meta = MarkdownSourceStorage.CreateMetaEntries(markdown);
-        var decoded = MarkdownSourceStorage.DecodeSource(meta["md-note-source"]);
-        decoded.Should().Be(markdown);
+        var encoded = MarkdownSourceStorage.EncodeSource(markdown);
+        var html = MarkdownSourceStorage.BuildHiddenSourceHtml(encoded);
+        var extracted = MarkdownSourceStorage.ExtractHiddenSource(html);
+        extracted.Should().Be(encoded);
+        MarkdownSourceStorage.DecodeSource(extracted).Should().Be(markdown);
+    }
+
+    [Fact]
+    public void ExtractHiddenSource_Null_ReturnsNull()
+    {
+        MarkdownSourceStorage.ExtractHiddenSource(null).Should().BeNull();
+    }
+
+    [Fact]
+    public void ExtractHiddenSource_NoTag_ReturnsNull()
+    {
+        MarkdownSourceStorage.ExtractHiddenSource("<p>Hello</p>").Should().BeNull();
+    }
+
+    [Fact]
+    public void StripHiddenSource_RemovesTag()
+    {
+        var encoded = MarkdownSourceStorage.EncodeSource("# Test");
+        var html = "<p>Content</p>" + MarkdownSourceStorage.BuildHiddenSourceHtml(encoded);
+        var stripped = MarkdownSourceStorage.StripHiddenSource(html);
+        stripped.Should().Be("<p>Content</p>");
     }
 }

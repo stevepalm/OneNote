@@ -1,5 +1,6 @@
 namespace MDNote
 {
+    using MDNote.Core;
     using MDNote.Core.Models;
     using MDNote.OneNote;
     using System;
@@ -80,12 +81,16 @@ namespace MDNote
                 var title = _interop.GetPageTitle(pageId) ?? "untitled";
                 var safeName = SanitizeFileName(title);
 
+                var exportPath = SettingsManager.Current.DefaultExportPath;
                 var dialog = new SaveFileDialog
                 {
                     Title = "Export Markdown",
                     Filter = "Markdown files (*.md)|*.md|All files (*.*)|*.*",
                     FileName = $"{safeName}.md",
-                    DefaultExt = "md"
+                    DefaultExt = "md",
+                    InitialDirectory = string.IsNullOrEmpty(exportPath)
+                        ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                        : exportPath
                 };
 
                 var ownerHandle = GetForegroundWindow();
@@ -107,26 +112,29 @@ namespace MDNote
                 var filePath = dialog.FileName;
                 var fileDir = Path.GetDirectoryName(filePath);
 
-                // Extract and save embedded images
-                var pageXml = _interop.GetPageContent(pageId);
-                if (!string.IsNullOrEmpty(pageXml))
+                // Extract and save embedded images (if enabled in settings)
+                if (SettingsManager.Current.IncludeImages)
                 {
-                    var parser = new PageXmlParser(pageXml);
-                    var images = parser.GetImages();
-
-                    if (images.Count > 0)
+                    var pageXml = _interop.GetPageContent(pageId);
+                    if (!string.IsNullOrEmpty(pageXml))
                     {
-                        var imagesDir = Path.Combine(fileDir, "images");
-                        if (!Directory.Exists(imagesDir))
-                            Directory.CreateDirectory(imagesDir);
+                        var parser = new PageXmlParser(pageXml);
+                        var images = parser.GetImages();
 
-                        foreach (var img in images)
+                        if (images.Count > 0)
                         {
-                            var imgPath = Path.Combine(imagesDir, img.FileName);
-                            File.WriteAllBytes(imgPath, img.Data);
-                        }
+                            var imagesDir = Path.Combine(fileDir, "images");
+                            if (!Directory.Exists(imagesDir))
+                                Directory.CreateDirectory(imagesDir);
 
-                        markdown = RewriteImageReferences(markdown, images);
+                            foreach (var img in images)
+                            {
+                                var imgPath = Path.Combine(imagesDir, img.FileName);
+                                File.WriteAllBytes(imgPath, img.Data);
+                            }
+
+                            markdown = RewriteImageReferences(markdown, images);
+                        }
                     }
                 }
 

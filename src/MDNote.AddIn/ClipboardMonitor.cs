@@ -55,7 +55,7 @@ namespace MDNote
                 if (!IsOneNoteForeground())
                     return;
 
-                if (MdNoteSettings.Current.PasteMode == PasteMode.Off)
+                if (SettingsManager.Current.PasteMode == PasteMode.Off)
                     return;
 
                 ReadClipboard(out string text, out bool hasHtml);

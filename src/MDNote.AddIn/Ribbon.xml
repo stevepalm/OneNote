@@ -30,6 +30,7 @@
             imageMso="BlogOpenExisting"
             size="large"
             onAction="OnToggleLiveMode"
+            getPressed="GetLiveModePressed"
             keytip="L" />
           <button
             id="btnToggleSource"

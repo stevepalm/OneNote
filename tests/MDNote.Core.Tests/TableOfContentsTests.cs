@@ -70,4 +70,49 @@ public class TableOfContentsTests
 
         result.Html.Should().Contain("href=\"#");
     }
+
+    [Fact]
+    public void Convert_TocEnabledWithMultipleLevels_AllLevelsPresent()
+    {
+        var md = "# H1\n\nParagraph.\n\n## H2\n\nMore text.\n\n### H3\n\n#### H4";
+        var options = new ConversionOptions { EnableTableOfContents = true };
+        var result = _converter.Convert(md, options);
+
+        result.Html.Should().Contain("Table of Contents");
+        result.Html.Should().Contain("H1");
+        result.Html.Should().Contain("H2");
+        result.Html.Should().Contain("H3");
+        result.Html.Should().Contain("H4");
+    }
+
+    [Fact]
+    public void Convert_TocAndSyntaxHighlighting_BothWork()
+    {
+        var md = "# Title\n\n```csharp\nvar x = 1;\n```";
+        var options = new ConversionOptions
+        {
+            EnableTableOfContents = true,
+            EnableSyntaxHighlighting = true
+        };
+        var result = _converter.Convert(md, options);
+
+        result.Html.Should().Contain("Table of Contents");
+        result.Html.Should().Contain("Title");
+    }
+
+    [Fact]
+    public void Convert_TocWithLightTheme_StillGeneratesToc()
+    {
+        var md = "# Heading A\n## Heading B";
+        var options = new ConversionOptions
+        {
+            EnableTableOfContents = true,
+            Theme = "light"
+        };
+        var result = _converter.Convert(md, options);
+
+        result.Html.Should().Contain("Table of Contents");
+        result.Html.Should().Contain("Heading A");
+        result.Html.Should().Contain("Heading B");
+    }
 }

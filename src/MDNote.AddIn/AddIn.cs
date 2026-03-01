@@ -1,6 +1,7 @@
 namespace MDNote
 {
     using Extensibility;
+    using MDNote.Core;
     using Microsoft.Office.Core;
     using System;
     using System.IO;
@@ -21,6 +22,7 @@ namespace MDNote
         private object _oneNoteApp;
         private HotkeyManager _hotkeyManager;
         private ClipboardMonitor _clipboardMonitor;
+        private LiveModeManager _liveModeManager;
 
         private static void Log(string message)
         {
@@ -57,6 +59,9 @@ namespace MDNote
                 _clipboardMonitor.Start(
                     onMarkdownDetected: (text) => PasteHandler.Handle(_oneNoteApp, text));
 
+                _liveModeManager = new LiveModeManager();
+                _liveModeManager.Start(_oneNoteApp);
+
                 Log("OnConnection OK");
             }
             catch (Exception ex)
@@ -71,17 +76,20 @@ namespace MDNote
         {
             Log("OnDisconnection called");
             ToggleSourceCommand.Reset();
+            _liveModeManager?.Dispose();
+            _liveModeManager = null;
             _clipboardMonitor?.Dispose();
             _clipboardMonitor = null;
             _hotkeyManager?.Dispose();
             _hotkeyManager = null;
-            MdNoteSettings.Reset();
+            SettingsManager.Reset();
 
             if (_oneNoteApp != null)
             {
                 Marshal.ReleaseComObject(_oneNoteApp);
                 _oneNoteApp = null;
             }
+            RibbonHandler.InvalidateControl = null;
             _ribbon = null;
         }
 
@@ -128,6 +136,7 @@ namespace MDNote
         public void RibbonLoaded(IRibbonUI ribbonUI)
         {
             _ribbon = ribbonUI;
+            RibbonHandler.InvalidateControl = (id) => _ribbon?.InvalidateControl(id);
         }
 
         public void OnRenderPage(IRibbonControl control)
@@ -150,7 +159,14 @@ namespace MDNote
 
         public void OnToggleLiveMode(IRibbonControl control, bool pressed)
         {
-            RibbonHandler.ShowStub("Live Mode", 3);
+            Log("OnToggleLiveMode callback invoked");
+            try { RibbonHandler.OnToggleLiveMode(_oneNoteApp, _liveModeManager); }
+            catch (Exception ex) { Log($"OnToggleLiveMode FAILED: {ex}"); }
+        }
+
+        public bool GetLiveModePressed(IRibbonControl control)
+        {
+            return _liveModeManager?.IsActive ?? false;
         }
 
         public void OnToggleSource(IRibbonControl control)
@@ -190,7 +206,9 @@ namespace MDNote
 
         public void OnInsertToc(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("Insert TOC", 3);
+            Log("OnInsertToc callback invoked");
+            try { RibbonHandler.OnInsertToc(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnInsertToc FAILED: {ex}"); }
         }
 
         public void OnOpenSettings(IRibbonControl control)
@@ -202,7 +220,9 @@ namespace MDNote
 
         public void OnShowAbout(IRibbonControl control)
         {
-            RibbonHandler.ShowStub("About", 1);
+            Log("OnShowAbout callback invoked");
+            try { RibbonHandler.OnShowAbout(); }
+            catch (Exception ex) { Log($"OnShowAbout FAILED: {ex}"); }
         }
     }
 }

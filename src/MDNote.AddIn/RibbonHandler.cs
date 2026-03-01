@@ -2,7 +2,6 @@ namespace MDNote
 {
     using MDNote.OneNote;
     using System;
-    using System.Diagnostics;
     using System.Runtime.InteropServices;
     using System.Windows.Forms;
 
@@ -13,6 +12,11 @@ namespace MDNote
 
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
+
+        /// <summary>
+        /// Delegate set by AddIn.RibbonLoaded to allow commands to invalidate ribbon controls.
+        /// </summary>
+        internal static Action<string> InvalidateControl;
 
         /// <summary>
         /// Renders the entire active page from Markdown to OneNote rich text.
@@ -70,33 +74,33 @@ namespace MDNote
             command.PasteAndRender();
         }
 
-        /// <summary>
-        /// Cycles paste-detection mode: Prompt → Auto → Off → Prompt.
-        /// </summary>
-        public static void OnOpenSettings(object oneNoteApp)
+        public static void OnToggleLiveMode(object oneNoteApp, LiveModeManager manager)
         {
-            var current = MdNoteSettings.Current.PasteMode;
-            var next = (PasteMode)(((int)current + 1) % 3);
-            MdNoteSettings.Current.PasteMode = next;
-            MdNoteSettings.Current.Save();
-            NotificationHelper.ShowSuccess($"Paste mode: {next}");
+            manager.Toggle(oneNoteApp);
+            var active = manager.IsActive;
+            NotificationHelper.ShowSuccess(active ? "Live Mode ON" : "Live Mode OFF");
+            InvalidateControl?.Invoke("btnLiveMode");
         }
 
-        /// <summary>
-        /// Stub for features not yet implemented.
-        /// </summary>
-        public static void ShowStub(string featureName, int sessionNumber)
+        public static void OnInsertToc(object oneNoteApp)
         {
-            ShowForegroundMessageBox(
-                $"MD Note: {featureName} — Session {sessionNumber}",
-                "MD Note",
-                MessageBoxIcon.Information);
+            var interop = new OneNoteInterop(oneNoteApp);
+            var command = new TocCommand(interop);
+            command.Execute();
+        }
+
+        public static void OnOpenSettings(object oneNoteApp)
+        {
+            SettingsForm.ShowSettingsDialog();
+        }
+
+        public static void OnShowAbout()
+        {
+            AboutDialog.ShowAboutDialog();
         }
 
         private static void ShowForegroundMessageBox(string text, string caption, MessageBoxIcon icon)
         {
-            // dllhost.exe runs out-of-process; use NativeWindow as owner so
-            // the MessageBox appears in front of OneNote.
             var ownerHandle = GetForegroundWindow();
             var owner = new NativeWindow();
             try

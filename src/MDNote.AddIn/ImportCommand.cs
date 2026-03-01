@@ -73,7 +73,7 @@ namespace MDNote
                 }
 
                 var converter = new MarkdownConverter();
-                var result = converter.Convert(markdown);
+                var result = converter.Convert(markdown, SettingsManager.Current.ToConversionOptions());
 
                 var writer = new PageWriter(_interop);
                 writer.RenderMarkdownToPage(newPageId, result, markdown);
@@ -122,7 +122,7 @@ namespace MDNote
                 }
 
                 var converter = new MarkdownConverter();
-                var result = converter.Convert(text);
+                var result = converter.Convert(text, SettingsManager.Current.ToConversionOptions());
 
                 var writer = new PageWriter(_interop);
                 writer.RenderMarkdownToPage(pageId, result, text);

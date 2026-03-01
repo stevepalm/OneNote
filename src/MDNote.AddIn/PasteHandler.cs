@@ -14,7 +14,7 @@ namespace MDNote
         {
             try
             {
-                var mode = MdNoteSettings.Current.PasteMode;
+                var mode = SettingsManager.Current.PasteMode;
 
                 switch (mode)
                 {
@@ -27,8 +27,8 @@ namespace MDNote
                             onRender: () => RenderMarkdown(oneNoteApp, markdownText),
                             onAlwaysRender: () =>
                             {
-                                MdNoteSettings.Current.PasteMode = PasteMode.Auto;
-                                MdNoteSettings.Current.Save();
+                                SettingsManager.Current.PasteMode = PasteMode.Auto;
+                                SettingsManager.Instance.Save();
                                 RenderMarkdown(oneNoteApp, markdownText);
                             });
                         break;
@@ -70,7 +70,7 @@ namespace MDNote
                 }
 
                 var converter = new MarkdownConverter();
-                var result = converter.Convert(markdownText);
+                var result = converter.Convert(markdownText, SettingsManager.Current.ToConversionOptions());
 
                 var writer = new PageWriter(interop);
                 writer.RenderMarkdownToPage(pageId, result, markdownText);

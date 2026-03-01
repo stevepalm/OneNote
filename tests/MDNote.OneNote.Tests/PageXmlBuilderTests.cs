@@ -200,21 +200,37 @@ namespace MDNote.OneNote.Tests
         }
 
         [Fact]
-        public void AddOutline_TableBlock_KeptAsSingleOE()
+        public void AddOutline_TableBlock_ConvertedToNativeTable()
         {
-            var html = "<table><tr><td>Cell</td></tr></table>";
+            var html = "<table><tr><td>Cell1</td><td>Cell2</td></tr></table>";
             var xml = new PageXmlBuilder("page-1")
                 .AddOutline(html)
                 .Build();
             var page = XElement.Parse(xml);
 
-            var oes = page.Element(OneNs + "Outline")
-                          .Element(OneNs + "OEChildren")
-                          .Elements(OneNs + "OE")
-                          .ToList();
+            var oe = page.Element(OneNs + "Outline")
+                         .Element(OneNs + "OEChildren")
+                         .Element(OneNs + "OE");
 
-            oes.Should().HaveCount(1);
-            oes[0].Element(OneNs + "T").Value.Should().Contain("<table");
+            // Should contain a native one:Table, not HTML table in CDATA
+            var table = oe.Element(OneNs + "Table");
+            table.Should().NotBeNull("HTML tables must be converted to native OneNote tables");
+            table.Attribute("bordersVisible").Value.Should().Be("true");
+
+            var columns = table.Element(OneNs + "Columns").Elements(OneNs + "Column").ToList();
+            columns.Should().HaveCount(2);
+
+            var rows = table.Elements(OneNs + "Row").ToList();
+            rows.Should().HaveCount(1);
+
+            var cells = rows[0].Elements(OneNs + "Cell").ToList();
+            cells.Should().HaveCount(2);
+
+            // Cell content should be in OEChildren/OE/T CDATA
+            var cellText = cells[0].Element(OneNs + "OEChildren")
+                                   .Element(OneNs + "OE")
+                                   .Element(OneNs + "T").Value;
+            cellText.Should().Be("Cell1");
         }
 
         [Fact]

@@ -39,6 +39,9 @@ namespace MDNote
             }
         }
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
         private class ToastForm : Form
         {
             private const int WS_EX_NOACTIVATE = 0x08000000;
@@ -79,8 +82,12 @@ namespace MDNote
                 label.Size = ClientSize;
                 label.TextAlign = ContentAlignment.MiddleLeft;
 
-                // Position top-right of primary screen working area
-                var workArea = Screen.PrimaryScreen.WorkingArea;
+                // Position top-right of the screen where OneNote (foreground window) is
+                var fgHandle = GetForegroundWindow();
+                var screen = fgHandle != IntPtr.Zero
+                    ? Screen.FromHandle(fgHandle)
+                    : Screen.PrimaryScreen;
+                var workArea = screen.WorkingArea;
                 Location = new Point(
                     workArea.Right - Width - 16,
                     workArea.Top + 16);

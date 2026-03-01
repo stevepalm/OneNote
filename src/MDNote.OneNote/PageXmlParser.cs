@@ -95,14 +95,25 @@ namespace MDNote.OneNote
         /// <summary>
         /// Extracts plain text from all outline elements, stripping HTML tags.
         /// Does NOT include title text.
+        /// Multiple T elements within the same OE are concatenated (same line).
+        /// Separate OE elements become separate lines.
         /// </summary>
         public string GetOutlinePlainText()
         {
-            var texts = _page.Elements(OneNs + "Outline")
-                .Descendants(OneNs + "T")
-                .Select(t => StripHtmlTags(t.Value));
+            var lines = new List<string>();
 
-            return string.Join("\n", texts);
+            foreach (var oe in _page.Elements(OneNs + "Outline")
+                .Descendants(OneNs + "OE"))
+            {
+                // T elements within the same OE are segments of the same line
+                var tElements = oe.Elements(OneNs + "T");
+                var lineText = string.Concat(
+                    tElements.Select(t => StripHtmlTags(t.Value)));
+
+                lines.Add(lineText);
+            }
+
+            return string.Join("\n", lines);
         }
 
         /// <summary>

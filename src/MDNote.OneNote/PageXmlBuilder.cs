@@ -49,7 +49,16 @@ namespace MDNote.OneNote
             if (string.IsNullOrEmpty(xml))
                 throw new ArgumentNullException(nameof(xml));
 
-            return new PageXmlBuilder(XElement.Parse(xml));
+            var page = XElement.Parse(xml);
+
+            // Strip read-only attributes that OneNote returns but rejects on update
+            foreach (var attr in page.Descendants()
+                .Attributes("isSetByUser").ToList())
+            {
+                attr.Remove();
+            }
+
+            return new PageXmlBuilder(page);
         }
 
         /// <summary>
@@ -68,9 +77,19 @@ namespace MDNote.OneNote
             return this;
         }
 
+        // OneNote Page schema element order — Meta must appear after these:
+        private static readonly string[] BeforeMeta =
+            { "Title", "TagDef", "QuickStyleDef", "XPSFile" };
+
+        // ... and before these:
+        private static readonly string[] AfterMeta =
+            { "MediaPlaylist", "MeetingInfo", "PageSettings",
+              "Outline", "Image", "InkDrawing", "InsertedFile", "MediaFile" };
+
         /// <summary>
-        /// Adds a Meta element. Inserted after Title and existing Meta elements,
-        /// before Outline elements (OneNote requires strict element ordering).
+        /// Adds a Meta element in the correct schema position.
+        /// OneNote requires: Title, TagDef*, QuickStyleDef*, XPSFile*, Meta*,
+        /// MediaPlaylist*, MeetingInfo*, PageSettings?, Outline/Image/etc.
         /// </summary>
         public PageXmlBuilder AddMeta(string name, string content)
         {
@@ -78,21 +97,40 @@ namespace MDNote.OneNote
                 new XAttribute("name", name),
                 new XAttribute("content", content ?? ""));
 
-            // Insert after last existing Meta, or after Title, or at start
+            // Best case: insert after last existing Meta
             var lastMeta = _page.Elements(OneNs + "Meta").LastOrDefault();
             if (lastMeta != null)
             {
                 lastMeta.AddAfterSelf(meta);
-            }
-            else
-            {
-                var title = _page.Element(OneNs + "Title");
-                if (title != null)
-                    title.AddAfterSelf(meta);
-                else
-                    _page.AddFirst(meta);
+                return this;
             }
 
+            // No existing Meta — find correct position per schema.
+            // Insert before the first element that must come AFTER Meta.
+            foreach (var tag in AfterMeta)
+            {
+                var first = _page.Element(OneNs + tag);
+                if (first != null)
+                {
+                    first.AddBeforeSelf(meta);
+                    return this;
+                }
+            }
+
+            // Nothing after Meta position found — insert after the last
+            // element that must come BEFORE Meta, or append to page.
+            for (int i = BeforeMeta.Length - 1; i >= 0; i--)
+            {
+                var last = _page.Elements(OneNs + BeforeMeta[i]).LastOrDefault();
+                if (last != null)
+                {
+                    last.AddAfterSelf(meta);
+                    return this;
+                }
+            }
+
+            // Empty page — just append
+            _page.Add(meta);
             return this;
         }
 
@@ -100,16 +138,19 @@ namespace MDNote.OneNote
         /// Adds an Outline element containing the HTML content split into separate OE elements.
         /// </summary>
         public PageXmlBuilder AddOutline(string html,
-            double left = 36.0, double top = 86.4, double width = 576.0)
+            double left = 36.0, double top = 86.4, double width = 576.0, double height = 200.0)
         {
+            // Note: do NOT include isSetByUser — it's a read-only attribute
+            // that OneNote returns but rejects on UpdatePageContent.
+            // Both width and height are required by the OneNote XML schema.
+            // OneNote will auto-adjust height to fit the actual content.
             var outline = new XElement(OneNs + "Outline",
                 new XElement(OneNs + "Position",
                     new XAttribute("x", left.ToString(CultureInfo.InvariantCulture)),
-                    new XAttribute("y", top.ToString(CultureInfo.InvariantCulture)),
-                    new XAttribute("isSetByUser", "true")),
+                    new XAttribute("y", top.ToString(CultureInfo.InvariantCulture))),
                 new XElement(OneNs + "Size",
                     new XAttribute("width", width.ToString(CultureInfo.InvariantCulture)),
-                    new XAttribute("isSetByUser", "true")));
+                    new XAttribute("height", height.ToString(CultureInfo.InvariantCulture))));
 
             var oeChildren = BuildOEChildren(html);
             outline.Add(oeChildren);
@@ -195,9 +236,43 @@ namespace MDNote.OneNote
         /// for selective clearing on re-render.
         /// </summary>
         public PageXmlBuilder AddRenderedOutline(string html,
-            double left = 36.0, double top = 86.4, double width = 576.0)
+            double left = 36.0, double top = 86.4, double width = 576.0, double height = 200.0)
         {
-            return AddOutline("<!-- md-note-rendered -->" + html, left, top, width);
+            return AddOutline("<!-- md-note-rendered -->" + html, left, top, width, height);
+        }
+
+        /// <summary>
+        /// Replaces the OEChildren of the first outline that has the md-note-rendered marker,
+        /// or the first outline if no marker is found. Preserves the outline's objectID so
+        /// OneNote updates in-place rather than creating a duplicate.
+        /// UpdatePageContent is a merge operation — removing outlines from XML doesn't delete
+        /// them from the page; we must replace content of existing outlines.
+        /// Returns true if an existing outline was replaced; false if a new one was added.
+        /// </summary>
+        public bool ReplaceOrAddRenderedOutline(string html)
+        {
+            var markedHtml = "<!-- md-note-rendered -->" + html;
+
+            // First try: find outline with the md-note-rendered marker (re-render)
+            var target = _page.Elements(OneNs + "Outline")
+                .FirstOrDefault(o => o.Descendants(OneNs + "T")
+                    .Any(t => t.Value.Contains("<!-- md-note-rendered -->")));
+
+            // Second try: use the first outline (first render — raw markdown outline)
+            if (target == null)
+                target = _page.Elements(OneNs + "Outline").FirstOrDefault();
+
+            if (target != null)
+            {
+                // Replace content in-place, preserving objectID and position
+                target.Element(OneNs + "OEChildren")?.Remove();
+                target.Add(BuildOEChildren(markedHtml));
+                return true;
+            }
+
+            // No existing outline — add new one
+            AddOutline(markedHtml);
+            return false;
         }
 
         /// <summary>
@@ -208,6 +283,16 @@ namespace MDNote.OneNote
             return _page.ToString(SaveOptions.DisableFormatting);
         }
 
+        // Regex to extract table rows
+        private static readonly Regex TableRowRegex = new Regex(
+            @"<tr[^>]*>([\s\S]*?)</tr>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        // Regex to extract table cells (td)
+        private static readonly Regex TableCellRegex = new Regex(
+            @"<td[^>]*>([\s\S]*?)</td>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         private XElement BuildOEChildren(string html)
         {
             var oeChildren = new XElement(OneNs + "OEChildren");
@@ -215,6 +300,17 @@ namespace MDNote.OneNote
 
             foreach (var block in blocks)
             {
+                if (block.StartsWith("<table", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Convert HTML table to OneNote native table XML
+                    var tableOe = BuildNativeTable(block);
+                    if (tableOe != null)
+                    {
+                        oeChildren.Add(tableOe);
+                        continue;
+                    }
+                }
+
                 oeChildren.Add(
                     new XElement(OneNs + "OE",
                         new XElement(OneNs + "T",
@@ -222,6 +318,73 @@ namespace MDNote.OneNote
             }
 
             return oeChildren;
+        }
+
+        /// <summary>
+        /// Converts an HTML table to a OneNote native Table element wrapped in an OE.
+        /// OneNote does not support HTML table tags in CDATA — tables must use
+        /// one:Table/one:Row/one:Cell native XML structure.
+        /// </summary>
+        private XElement BuildNativeTable(string tableHtml)
+        {
+            var rows = TableRowRegex.Matches(tableHtml);
+            if (rows.Count == 0)
+                return null;
+
+            // Parse all rows to determine column count and cell contents
+            var tableData = new List<List<string>>();
+            int maxCols = 0;
+
+            foreach (Match rowMatch in rows)
+            {
+                var cells = TableCellRegex.Matches(rowMatch.Groups[1].Value);
+                var row = new List<string>();
+                foreach (Match cellMatch in cells)
+                {
+                    row.Add(cellMatch.Groups[1].Value.Trim());
+                }
+                if (row.Count > maxCols)
+                    maxCols = row.Count;
+                tableData.Add(row);
+            }
+
+            if (maxCols == 0)
+                return null;
+
+            // Build one:Table
+            var table = new XElement(OneNs + "Table",
+                new XAttribute("bordersVisible", "true"));
+
+            // Column definitions — distribute width evenly
+            var colWidth = Math.Max(40.0, 540.0 / maxCols);
+            var columns = new XElement(OneNs + "Columns");
+            for (int i = 0; i < maxCols; i++)
+            {
+                columns.Add(new XElement(OneNs + "Column",
+                    new XAttribute("index", i.ToString()),
+                    new XAttribute("width", colWidth.ToString(CultureInfo.InvariantCulture)),
+                    new XAttribute("isLocked", "false")));
+            }
+            table.Add(columns);
+
+            // Rows
+            foreach (var rowData in tableData)
+            {
+                var row = new XElement(OneNs + "Row");
+                for (int c = 0; c < maxCols; c++)
+                {
+                    var cellContent = c < rowData.Count ? rowData[c] : "";
+                    var cell = new XElement(OneNs + "Cell",
+                        new XElement(OneNs + "OEChildren",
+                            new XElement(OneNs + "OE",
+                                new XElement(OneNs + "T",
+                                    new XCData(cellContent)))));
+                    row.Add(cell);
+                }
+                table.Add(row);
+            }
+
+            return new XElement(OneNs + "OE", table);
         }
 
         /// <summary>

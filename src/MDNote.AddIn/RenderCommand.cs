@@ -104,8 +104,6 @@ namespace MDNote
 
                 var writer = new PageWriter(_interop);
                 writer.RenderMarkdownToPage(pageId, result, markdown);
-
-                NotificationHelper.ShowSuccess("Rendered");
             }
             catch (Exception ex)
             {

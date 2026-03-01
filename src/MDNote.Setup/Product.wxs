@@ -65,7 +65,7 @@
     </Property>
 
     <Launch
-      Condition="Installed OR (NETFRAMEWORK48 >= 528040)"
+      Condition='Installed OR NETFRAMEWORK48 >= "#528040"'
       Message=".NET Framework 4.8 or later is required. Please install it from Microsoft and try again." />
 
     <!-- Installation directory: Program Files (x64) or Program Files (x86) -->

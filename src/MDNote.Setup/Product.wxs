@@ -160,6 +160,31 @@
               KeyPath="yes" />
       </Component>
 
+      <!-- .NET Standard support assemblies (transitive deps of Markdig on net48) -->
+      <Component Id="SystemMemoryDll" Guid="DCA2B3C4-E5F6-7890-ABCD-EF12345678A1">
+        <File Id="System.Memory.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\System.Memory.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <Component Id="SystemBuffersDll" Guid="DCA2B3C4-E5F6-7890-ABCD-EF12345678A2">
+        <File Id="System.Buffers.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\System.Buffers.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <Component Id="SystemNumericsDll" Guid="DCA2B3C4-E5F6-7890-ABCD-EF12345678A3">
+        <File Id="System.Numerics.Vectors.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\System.Numerics.Vectors.dll"
+              KeyPath="yes" />
+      </Component>
+
+      <Component Id="SystemUnsafeDll" Guid="DCA2B3C4-E5F6-7890-ABCD-EF12345678A4">
+        <File Id="System.Runtime.CompilerServices.Unsafe.dll"
+              Source="$(var.MDNote.AddIn.TargetDir)\System.Runtime.CompilerServices.Unsafe.dll"
+              KeyPath="yes" />
+      </Component>
+
     </ComponentGroup>
 
     <!-- ======================== -->

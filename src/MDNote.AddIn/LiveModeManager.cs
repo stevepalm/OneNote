@@ -5,11 +5,12 @@ namespace MDNote
     using System;
     using System.Diagnostics;
     using System.Runtime.InteropServices;
-    using System.Windows.Forms;
+    using System.Threading;
 
     /// <summary>
     /// Polls the active OneNote page on a timer and auto-renders when markdown
     /// content changes. Pauses in source view mode or when OneNote is not foreground.
+    /// Uses System.Threading.Timer so the dllhost STA thread is never blocked.
     /// </summary>
     internal class LiveModeManager : IDisposable
     {
@@ -57,32 +58,36 @@ namespace MDNote
         private void SyncState()
         {
             var settings = SettingsManager.Current;
+            var interval = Math.Max(500, settings.LiveModeDelayMs);
 
             if (settings.LiveModeEnabled)
             {
                 if (_timer == null)
                 {
-                    _timer = new Timer();
-                    _timer.Tick += OnTimerTick;
+                    _timer = new Timer(OnTimerTick, null,
+                        Timeout.Infinite, Timeout.Infinite);
                 }
-
-                _timer.Interval = Math.Max(500, settings.LiveModeDelayMs);
 
                 if (!IsActive)
                 {
                     // First activation — seed hashes from current page to avoid
                     // an immediate re-render of already-rendered content.
                     SeedHashes();
-                    _timer.Start();
+                    _timer.Change(interval, interval);
                     IsActive = true;
                     ErrorHandler.Log("Live mode started.");
+                }
+                else
+                {
+                    // Update interval if it changed
+                    _timer.Change(interval, interval);
                 }
             }
             else
             {
                 if (IsActive)
                 {
-                    _timer?.Stop();
+                    _timer?.Change(Timeout.Infinite, Timeout.Infinite);
                     IsActive = false;
                     _lastSourceHash = null;
                     _lastTextHash = null;
@@ -116,13 +121,24 @@ namespace MDNote
             }
         }
 
-        private void OnTimerTick(object sender, EventArgs e)
+        private void OnTimerTick(object state)
+        {
+            // Skip if another command is already running
+            if (CommandRunner.IsBusy)
+                return;
+
+            if (!IsOneNoteForeground())
+                return;
+
+            // Dispatch the render work to an STA thread via CommandRunner.
+            // TryRunCommand silently skips if a command started between our check and now.
+            CommandRunner.TryRunCommand(() => DoLiveRender(), "Live Mode");
+        }
+
+        private void DoLiveRender()
         {
             try
             {
-                if (!IsOneNoteForeground())
-                    return;
-
                 var interop = new OneNoteInterop(_oneNoteApp);
                 var pageId = interop.GetActivePageId();
                 if (string.IsNullOrEmpty(pageId))
@@ -199,7 +215,7 @@ namespace MDNote
             }
             catch (Exception ex)
             {
-                ErrorHandler.LogError("Live mode tick", ex);
+                ErrorHandler.LogError("Live mode render", ex);
             }
         }
 
@@ -228,7 +244,7 @@ namespace MDNote
             _disposed = true;
 
             SettingsManager.Instance.SettingsChanged -= OnSettingsChanged;
-            _timer?.Stop();
+            _timer?.Change(Timeout.Infinite, Timeout.Infinite);
             _timer?.Dispose();
             _timer = null;
             IsActive = false;

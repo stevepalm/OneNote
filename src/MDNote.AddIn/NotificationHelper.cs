@@ -3,6 +3,7 @@ namespace MDNote
     using System;
     using System.Drawing;
     using System.Runtime.InteropServices;
+    using System.Threading;
     using System.Windows.Forms;
 
     /// <summary>
@@ -30,8 +31,22 @@ namespace MDNote
         {
             try
             {
-                var toast = new ToastForm(message, bgColor, durationMs);
-                toast.Show();
+                // Run each toast on its own STA thread with a message pump so
+                // the auto-dismiss timer fires correctly even when called from
+                // worker threads that have no message loop.
+                var thread = new Thread(() =>
+                {
+                    try
+                    {
+                        var toast = new ToastForm(message, bgColor, durationMs);
+                        toast.FormClosed += (s, e) => Application.ExitThread();
+                        Application.Run(toast);
+                    }
+                    catch { }
+                });
+                thread.SetApartmentState(ApartmentState.STA);
+                thread.IsBackground = true;
+                thread.Start();
             }
             catch
             {
@@ -48,7 +63,7 @@ namespace MDNote
             private const int WS_EX_TOOLWINDOW = 0x00000080;
             private const int WS_EX_TOPMOST = 0x00000008;
 
-            private readonly Timer _timer;
+            private readonly System.Windows.Forms.Timer _timer;
 
             public ToastForm(string message, Color bgColor, int durationMs)
             {
@@ -92,7 +107,7 @@ namespace MDNote
                     workArea.Right - Width - 16,
                     workArea.Top + 16);
 
-                _timer = new Timer { Interval = durationMs };
+                _timer = new System.Windows.Forms.Timer { Interval = durationMs };
                 _timer.Tick += (s, e) =>
                 {
                     _timer.Stop();

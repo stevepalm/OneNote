@@ -19,17 +19,23 @@ namespace MDNote
                 switch (mode)
                 {
                     case PasteMode.Auto:
-                        RenderMarkdown(oneNoteApp, markdownText);
+                        CommandRunner.TryRunCommand(
+                            () => RenderMarkdown(oneNoteApp, markdownText),
+                            "Paste Render");
                         break;
 
                     case PasteMode.Prompt:
                         PromptNotification.Show(
-                            onRender: () => RenderMarkdown(oneNoteApp, markdownText),
+                            onRender: () => CommandRunner.TryRunCommand(
+                                () => RenderMarkdown(oneNoteApp, markdownText),
+                                "Paste Render"),
                             onAlwaysRender: () =>
                             {
                                 SettingsManager.Current.PasteMode = PasteMode.Auto;
                                 SettingsManager.Instance.Save();
-                                RenderMarkdown(oneNoteApp, markdownText);
+                                CommandRunner.TryRunCommand(
+                                    () => RenderMarkdown(oneNoteApp, markdownText),
+                                    "Paste Render");
                             });
                         break;
 

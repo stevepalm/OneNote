@@ -23,9 +23,12 @@ namespace MDNote
         /// </summary>
         public static void OnRenderPage(object oneNoteApp)
         {
-            var interop = new OneNoteInterop(oneNoteApp);
-            var command = new RenderCommand(interop);
-            command.RenderPage();
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new RenderCommand(interop);
+                command.RenderPage();
+            }, "Render Page");
         }
 
         /// <summary>
@@ -34,69 +37,99 @@ namespace MDNote
         /// </summary>
         public static void OnRenderSelection(object oneNoteApp)
         {
-            var interop = new OneNoteInterop(oneNoteApp);
-            var command = new RenderCommand(interop);
-            command.RenderSelection();
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new RenderCommand(interop);
+                command.RenderSelection();
+            }, "Render Selection");
         }
 
         public static void OnToggleSource(object oneNoteApp)
         {
-            var interop = new OneNoteInterop(oneNoteApp);
-            var command = new ToggleSourceCommand(interop);
-            command.Execute();
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new ToggleSourceCommand(interop);
+                command.Execute();
+            }, "Toggle Source");
         }
 
         public static void OnExportClipboard(object oneNoteApp)
         {
-            var interop = new OneNoteInterop(oneNoteApp);
-            var command = new ExportCommand(interop);
-            command.ExportToClipboard();
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new ExportCommand(interop);
+                command.ExportToClipboard();
+            }, "Export Clipboard");
         }
 
         public static void OnExportFile(object oneNoteApp)
         {
-            var interop = new OneNoteInterop(oneNoteApp);
-            var command = new ExportCommand(interop);
-            command.ExportToFile();
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new ExportCommand(interop);
+                command.ExportToFile();
+            }, "Export File");
         }
 
         public static void OnImportMarkdown(object oneNoteApp)
         {
-            var interop = new OneNoteInterop(oneNoteApp);
-            var command = new ImportCommand(interop);
-            command.ImportMarkdownFile();
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new ImportCommand(interop);
+                command.ImportMarkdownFile();
+            }, "Import Markdown");
         }
 
         public static void OnPasteRender(object oneNoteApp)
         {
-            var interop = new OneNoteInterop(oneNoteApp);
-            var command = new ImportCommand(interop);
-            command.PasteAndRender();
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new ImportCommand(interop);
+                command.PasteAndRender();
+            }, "Paste & Render");
         }
 
         public static void OnToggleLiveMode(object oneNoteApp, LiveModeManager manager)
         {
-            manager.Toggle(oneNoteApp);
-            var active = manager.IsActive;
-            NotificationHelper.ShowSuccess(active ? "Live Mode ON" : "Live Mode OFF");
-            InvalidateControl?.Invoke("btnLiveMode");
+            CommandRunner.RunCommand(() =>
+            {
+                manager.Toggle(oneNoteApp);
+                var active = manager.IsActive;
+                NotificationHelper.ShowSuccess(active ? "Live Mode ON" : "Live Mode OFF");
+                InvalidateControl?.Invoke("btnLiveMode");
+            }, "Toggle Live Mode");
         }
 
         public static void OnInsertToc(object oneNoteApp)
         {
-            var interop = new OneNoteInterop(oneNoteApp);
-            var command = new TocCommand(interop);
-            command.Execute();
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new TocCommand(interop);
+                command.Execute();
+            }, "Insert TOC");
         }
 
         public static void OnOpenSettings(object oneNoteApp)
         {
-            SettingsForm.ShowSettingsDialog();
+            CommandRunner.RunDialog(() =>
+            {
+                SettingsForm.ShowSettingsDialog();
+            });
         }
 
         public static void OnShowAbout()
         {
-            AboutDialog.ShowAboutDialog();
+            CommandRunner.RunDialog(() =>
+            {
+                AboutDialog.ShowAboutDialog();
+            });
         }
 
         private static void ShowForegroundMessageBox(string text, string caption, MessageBoxIcon icon)

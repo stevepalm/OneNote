@@ -144,26 +144,22 @@ namespace MDNote
         public void OnRenderPage(IRibbonControl control)
         {
             Log("OnRenderPage callback invoked");
-            try
-            {
-                RibbonHandler.OnRenderPage(_oneNoteApp);
-                Log("OnRenderPage completed");
-            }
-            catch (Exception ex) { Log($"OnRenderPage FAILED: {ex}"); }
+            try { RibbonHandler.OnRenderPage(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnRenderPage dispatch FAILED: {ex}"); }
         }
 
         public void OnRenderSelection(IRibbonControl control)
         {
             Log("OnRenderSelection callback invoked");
             try { RibbonHandler.OnRenderSelection(_oneNoteApp); }
-            catch (Exception ex) { Log($"OnRenderSelection FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnRenderSelection dispatch FAILED: {ex}"); }
         }
 
         public void OnToggleLiveMode(IRibbonControl control, bool pressed)
         {
             Log("OnToggleLiveMode callback invoked");
             try { RibbonHandler.OnToggleLiveMode(_oneNoteApp, _liveModeManager); }
-            catch (Exception ex) { Log($"OnToggleLiveMode FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnToggleLiveMode dispatch FAILED: {ex}"); }
         }
 
         public bool GetLiveModePressed(IRibbonControl control)
@@ -175,56 +171,56 @@ namespace MDNote
         {
             Log("OnToggleSource callback invoked");
             try { RibbonHandler.OnToggleSource(_oneNoteApp); }
-            catch (Exception ex) { Log($"OnToggleSource FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnToggleSource dispatch FAILED: {ex}"); }
         }
 
         public void OnExportClipboard(IRibbonControl control)
         {
             Log("OnExportClipboard callback invoked");
             try { RibbonHandler.OnExportClipboard(_oneNoteApp); }
-            catch (Exception ex) { Log($"OnExportClipboard FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnExportClipboard dispatch FAILED: {ex}"); }
         }
 
         public void OnExportFile(IRibbonControl control)
         {
             Log("OnExportFile callback invoked");
             try { RibbonHandler.OnExportFile(_oneNoteApp); }
-            catch (Exception ex) { Log($"OnExportFile FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnExportFile dispatch FAILED: {ex}"); }
         }
 
         public void OnImportMarkdown(IRibbonControl control)
         {
             Log("OnImportMarkdown callback invoked");
             try { RibbonHandler.OnImportMarkdown(_oneNoteApp); }
-            catch (Exception ex) { Log($"OnImportMarkdown FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnImportMarkdown dispatch FAILED: {ex}"); }
         }
 
         public void OnPasteRender(IRibbonControl control)
         {
             Log("OnPasteRender callback invoked");
             try { RibbonHandler.OnPasteRender(_oneNoteApp); }
-            catch (Exception ex) { Log($"OnPasteRender FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnPasteRender dispatch FAILED: {ex}"); }
         }
 
         public void OnInsertToc(IRibbonControl control)
         {
             Log("OnInsertToc callback invoked");
             try { RibbonHandler.OnInsertToc(_oneNoteApp); }
-            catch (Exception ex) { Log($"OnInsertToc FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnInsertToc dispatch FAILED: {ex}"); }
         }
 
         public void OnOpenSettings(IRibbonControl control)
         {
             Log("OnOpenSettings callback invoked");
             try { RibbonHandler.OnOpenSettings(_oneNoteApp); }
-            catch (Exception ex) { Log($"OnOpenSettings FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnOpenSettings dispatch FAILED: {ex}"); }
         }
 
         public void OnShowAbout(IRibbonControl control)
         {
             Log("OnShowAbout callback invoked");
             try { RibbonHandler.OnShowAbout(); }
-            catch (Exception ex) { Log($"OnShowAbout FAILED: {ex}"); }
+            catch (Exception ex) { Log($"OnShowAbout dispatch FAILED: {ex}"); }
         }
     }
 }

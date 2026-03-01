@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -54,8 +55,16 @@ namespace MDNote.Core
                 return result;
             }
 
-            // 1. Extract mermaid blocks before Markdig processing
-            var processed = ExtractMermaidBlocks(markdown, result.MermaidBlocks);
+            var sw = Stopwatch.StartNew();
+
+            // 1. Extract mermaid blocks before Markdig processing (fast-path skip)
+            string processed;
+            if (markdown.IndexOf("mermaid", StringComparison.OrdinalIgnoreCase) >= 0)
+                processed = ExtractMermaidBlocks(markdown, result.MermaidBlocks);
+            else
+                processed = markdown;
+            result.PipelineTimings["ExtractMermaid"] = sw.ElapsedMilliseconds;
+            sw.Restart();
 
             // 2. Detect and remove TOC markers
             bool hasTocMarker = TocMarkerRegex.IsMatch(processed);
@@ -63,6 +72,8 @@ namespace MDNote.Core
 
             // 3. Parse with Markdig
             var document = Markdown.Parse(processed, _pipeline);
+            result.PipelineTimings["MarkdigParse"] = sw.ElapsedMilliseconds;
+            sw.Restart();
 
             // 4. Extract front-matter
             var yamlBlock = document.Descendants<YamlFrontMatterBlock>().FirstOrDefault();
@@ -87,6 +98,8 @@ namespace MDNote.Core
 
             // 7. Render AST to HTML
             var html = RenderToHtml(document);
+            result.PipelineTimings["RenderHtml"] = sw.ElapsedMilliseconds;
+            sw.Restart();
 
             // 8. Post-process: syntax highlighting
             if (options.EnableSyntaxHighlighting)
@@ -94,6 +107,8 @@ namespace MDNote.Core
                 var highlighter = new SyntaxHighlighter(options.Theme);
                 html = highlighter.HighlightCodeBlocks(html);
             }
+            result.PipelineTimings["SyntaxHighlight"] = sw.ElapsedMilliseconds;
+            sw.Restart();
 
             // 9. Post-process: math rendering
             var mathRenderer = new MathRenderer();
@@ -110,6 +125,8 @@ namespace MDNote.Core
                     html = toc + html;
                 }
             }
+            result.PipelineTimings["MathAndToc"] = sw.ElapsedMilliseconds;
+            sw.Restart();
 
             // 11. Replace mermaid placeholders with styled divs
             html = ReplaceMermaidPlaceholders(html, result.MermaidBlocks);
@@ -119,6 +136,7 @@ namespace MDNote.Core
             {
                 html = Regex.Replace(html, @"<style[\s\S]*?</style>", "", RegexOptions.IgnoreCase);
             }
+            result.PipelineTimings["PostProcess"] = sw.ElapsedMilliseconds;
 
             result.Html = html;
             return result;

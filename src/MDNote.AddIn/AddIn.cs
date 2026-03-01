@@ -2,6 +2,7 @@ namespace MDNote
 {
     using Extensibility;
     using MDNote.Core;
+    using MDNote.OneNote;
     using Microsoft.Office.Core;
     using System;
     using System.IO;
@@ -83,6 +84,7 @@ namespace MDNote
             _hotkeyManager?.Dispose();
             _hotkeyManager = null;
             SettingsManager.Reset();
+            PageStateBackup.Reset();
 
             if (_oneNoteApp != null)
             {

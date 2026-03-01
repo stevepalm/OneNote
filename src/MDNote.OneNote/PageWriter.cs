@@ -24,6 +24,10 @@ namespace MDNote.OneNote
             ConversionResult result, string markdownSource)
         {
             var currentXml = _interop.GetPageContent(pageId);
+
+            // Save state for undo on failure
+            PageStateBackup.Save(pageId, currentXml);
+
             var builder = PageXmlBuilder.FromPageXml(currentXml);
 
             if (!string.IsNullOrEmpty(result.Title))
@@ -34,12 +38,18 @@ namespace MDNote.OneNote
             foreach (var entry in metaEntries)
                 builder.SetMeta(entry.Key, entry.Value);
 
-            // Remove old rendered content, then add new
-            builder.ClearOutlines();
+            // Remove old rendered content: try selective first, fall back to clear-all
+            // for pages rendered before the marker was introduced
+            if (!builder.ClearRenderedOutlines())
+            {
+                var parser = new PageXmlParser(currentXml);
+                if (!string.IsNullOrEmpty(parser.GetMetaValue(MarkdownSourceStorage.MetaSource)))
+                    builder.ClearOutlines();
+            }
 
             var converter = new HtmlToOneNoteConverter();
             var oneNoteHtml = converter.ConvertForOneNote(result.Html);
-            builder.AddOutline(oneNoteHtml);
+            builder.AddRenderedOutline(oneNoteHtml);
 
             _interop.UpdatePageContent(builder.Build());
         }

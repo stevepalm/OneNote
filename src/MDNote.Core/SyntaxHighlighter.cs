@@ -19,10 +19,12 @@ namespace MDNote.Core
         private static readonly Dictionary<string, ILanguage> LanguageMap = BuildLanguageMap();
 
         private readonly StyleDictionary _styles;
+        private readonly HtmlFormatter _formatter;
 
         public SyntaxHighlighter(string theme = "dark")
         {
             _styles = theme == "dark" ? StyleDictionary.DefaultDark : StyleDictionary.DefaultLight;
+            _formatter = new HtmlFormatter(_styles);
         }
 
         public string HighlightCodeBlocks(string html)
@@ -64,8 +66,7 @@ namespace MDNote.Core
 
         private string FormatHighlightedCodeBlock(string code, ILanguage language, string languageAlias)
         {
-            var formatter = new HtmlFormatter(_styles);
-            var highlighted = formatter.GetHtmlString(code, language);
+            var highlighted = _formatter.GetHtmlString(code, language);
 
             // ColorCode wraps in <div style="..."><pre>...</pre></div>
             // We prepend a language label header and wrap everything together

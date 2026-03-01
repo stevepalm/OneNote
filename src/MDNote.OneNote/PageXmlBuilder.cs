@@ -167,6 +167,40 @@ namespace MDNote.OneNote
         }
 
         /// <summary>
+        /// Removes only outlines that contain the md-note-rendered marker in their CDATA.
+        /// Preserves ink, drawings, embedded files, and user-created outlines.
+        /// Returns true if any outlines were removed.
+        /// </summary>
+        public bool ClearRenderedOutlines()
+        {
+            var outlines = _page.Elements(OneNs + "Outline").ToList();
+            bool removed = false;
+
+            foreach (var outline in outlines)
+            {
+                var hasMarker = outline.Descendants(OneNs + "T")
+                    .Any(t => t.Value.Contains("<!-- md-note-rendered -->"));
+                if (hasMarker)
+                {
+                    outline.Remove();
+                    removed = true;
+                }
+            }
+
+            return removed;
+        }
+
+        /// <summary>
+        /// Adds an outline with the md-note-rendered marker so it can be identified
+        /// for selective clearing on re-render.
+        /// </summary>
+        public PageXmlBuilder AddRenderedOutline(string html,
+            double left = 36.0, double top = 86.4, double width = 576.0)
+        {
+            return AddOutline("<!-- md-note-rendered -->" + html, left, top, width);
+        }
+
+        /// <summary>
         /// Builds the final XML string for use with UpdatePageContent.
         /// </summary>
         public string Build()

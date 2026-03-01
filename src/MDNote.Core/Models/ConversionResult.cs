@@ -9,5 +9,6 @@ namespace MDNote.Core.Models
         public List<MermaidBlock> MermaidBlocks { get; set; } = new List<MermaidBlock>();
         public List<HeadingInfo> Headings { get; set; } = new List<HeadingInfo>();
         public Dictionary<string, string> FrontMatter { get; set; } = new Dictionary<string, string>();
+        public Dictionary<string, long> PipelineTimings { get; set; } = new Dictionary<string, long>();
     }
 }

@@ -45,7 +45,7 @@ public class HtmlToOneNoteConverterTests
     {
         var html = "<blockquote><p>A wise quote</p></blockquote>";
         var result = _converter.ConvertForOneNote(html);
-        result.Should().Contain("border-left:3px solid #ccc");
+        result.Should().Contain("border-left:3px solid");
         result.Should().Contain("margin-left:28px");
         result.Should().Contain("A wise quote");
         result.Should().NotContain("<blockquote>");
@@ -58,6 +58,48 @@ public class HtmlToOneNoteConverterTests
         var result = _converter.ConvertForOneNote(html);
         result.Should().NotContain("<blockquote>");
         result.Should().Contain("Nested");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_NestedBlockquotes_IncreasingIndent()
+    {
+        var html = "<blockquote><p>Outer</p><blockquote><p>Inner</p></blockquote></blockquote>";
+        var result = _converter.ConvertForOneNote(html);
+        // Innermost (depth 0) gets 28px, outermost (depth 1) gets 48px
+        result.Should().Contain("margin-left:28px");
+        result.Should().Contain("margin-left:48px");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_NestedBlockquotes_DifferentBorderColors()
+    {
+        var html = "<blockquote><blockquote><p>Inner</p></blockquote></blockquote>";
+        var result = _converter.ConvertForOneNote(html);
+        // Different border colors at different depths
+        result.Should().Contain("border-left:3px solid #4a9eff");
+        result.Should().Contain("border-left:3px solid #7b68ee");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_TripleNestedBlockquote_ThreeLevels()
+    {
+        var html = "<blockquote><blockquote><blockquote><p>Deep</p></blockquote></blockquote></blockquote>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<blockquote>");
+        result.Should().Contain("Deep");
+        // Should have 3 different indent levels
+        result.Should().Contain("margin-left:28px");
+        result.Should().Contain("margin-left:48px");
+        result.Should().Contain("margin-left:68px");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_BlockquoteWithFormatting_PreservesContent()
+    {
+        var html = "<blockquote><p><strong>Bold</strong> in a quote</p></blockquote>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("<strong>Bold</strong>");
+        result.Should().Contain("in a quote");
     }
 
     [Fact]
@@ -147,6 +189,42 @@ public class HtmlToOneNoteConverterTests
     }
 
     [Fact]
+    public void ConvertForOneNote_TableHeaderCells_HaveBottomBorder()
+    {
+        var html = "<table><tr><th>Header</th></tr><tr><td>Data</td></tr></table>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("border-bottom:2px solid #999");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_TableWithAlignment_PreservesTextAlign()
+    {
+        var html = "<table><tr><th style=\"text-align:center\">Center</th></tr></table>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("text-align:center");
+        result.Should().Contain("font-weight:bold");
+        result.Should().Contain("border-bottom:2px solid #999");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_TableDataCells_NoHeaderBorder()
+    {
+        var html = "<table><tr><td>Data</td></tr></table>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("border-bottom:2px solid #999");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_TableAlignCenter_MergedStyles()
+    {
+        var html = "<table><tr><th style=\"text-align:right\">Right</th></tr></table>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("text-align:right");
+        result.Should().Contain("font-weight:bold");
+        result.Should().Contain("border:1px solid #ccc");
+    }
+
+    [Fact]
     public void ConvertForOneNote_PassthroughElements_Preserved()
     {
         var html = "<p><strong>bold</strong> <em>italic</em> <a href=\"#\">link</a></p>";
@@ -154,5 +232,130 @@ public class HtmlToOneNoteConverterTests
         result.Should().Contain("<strong>bold</strong>");
         result.Should().Contain("<em>italic</em>");
         result.Should().Contain("<a href=\"#\">link</a>");
+    }
+
+    // --- Task list spacing ---
+
+    [Fact]
+    public void ConvertForOneNote_CheckedBox_HasSpaceAfter()
+    {
+        var html = "<input type=\"checkbox\" checked/> Done";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("\u2611\u00A0");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_UncheckedBox_HasSpaceAfter()
+    {
+        var html = "<input type=\"checkbox\"/> Pending";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("\u2610\u00A0");
+    }
+
+    // --- Footnote styling ---
+
+    [Fact]
+    public void ConvertForOneNote_FootnoteRef_StyledAsSuperscript()
+    {
+        var html = "<a id=\"fnref:1\" href=\"#fn:1\" class=\"footnote-ref\"><sup>1</sup></a>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("<sup style=\"font-size:8pt;color:#4a9eff\">[1]</sup>");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_FootnoteSection_HasBorderAndStyling()
+    {
+        var html = "<p>Text</p><div class=\"footnotes\"><hr/><ol><li id=\"fn:1\"><p>Note<a href=\"#fnref:1\" class=\"footnote-back-ref\">^</a></p></li></ol></div>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("border-top:1px solid #ccc");
+        result.Should().Contain("Footnotes");
+        result.Should().Contain("font-size:9pt");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_FootnoteBackRef_Removed()
+    {
+        var html = "<div class=\"footnotes\"><ol><li><p>Note<a href=\"#fnref:1\" class=\"footnote-back-ref\">^</a></p></li></ol></div>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("footnote-back-ref");
+        result.Should().Contain("Note");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_FootnoteMultipleRefs_AllStyled()
+    {
+        var html = "Text<a id=\"fnref:1\" href=\"#fn:1\" class=\"footnote-ref\"><sup>1</sup></a> more<a id=\"fnref:2\" href=\"#fn:2\" class=\"footnote-ref\"><sup>2</sup></a>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("[1]");
+        result.Should().Contain("[2]");
+    }
+
+    // --- Definition list conversion ---
+
+    [Fact]
+    public void ConvertForOneNote_DefinitionList_TermIsBold()
+    {
+        var html = "<dl><dt>Term</dt><dd>Definition</dd></dl>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("font-weight:bold");
+        result.Should().Contain("Term");
+        result.Should().NotContain("<dl>");
+        result.Should().NotContain("<dt>");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_DefinitionList_DefinitionIsIndented()
+    {
+        var html = "<dl><dt>Term</dt><dd>Definition</dd></dl>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("margin:2px 0 8px 28px");
+        result.Should().Contain("Definition");
+        result.Should().NotContain("<dd>");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_DefinitionList_DlTagRemoved()
+    {
+        var html = "<dl><dt>A</dt><dd>B</dd></dl>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<dl>");
+        result.Should().NotContain("</dl>");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_DefinitionList_MultipleEntries()
+    {
+        var html = "<dl><dt>Term1</dt><dd>Def1</dd><dt>Term2</dt><dd>Def2</dd></dl>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("Term1");
+        result.Should().Contain("Def1");
+        result.Should().Contain("Term2");
+        result.Should().Contain("Def2");
+    }
+
+    // --- Unicode/Emoji/CJK ---
+
+    [Fact]
+    public void ConvertForOneNote_CJKContent_Preserved()
+    {
+        var html = "<p>\u4f60\u597d\u4e16\u754c</p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("\u4f60\u597d\u4e16\u754c");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_EmojiInParagraph_Preserved()
+    {
+        var html = "<p>Hello \U0001f600 World</p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("\U0001f600");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_UnicodeInCodeBlock_Preserved()
+    {
+        var html = "<pre><code>// \u00e9\u00e8\u00ea\u00eb</code></pre>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("\u00e9\u00e8\u00ea\u00eb");
     }
 }

@@ -27,9 +27,19 @@ namespace MDNote.Core
             @"<p\s+style=""font-size:(\d+)pt;font-weight:bold""[^>]*>([\s\S]*?)</p>",
             RegexOptions.Compiled);
 
-        // Blockquote: <p style="margin-left:28px;border-left:3px solid #ccc;...">
+        // Blockquote: <p style="margin-left:NNpx;border-left:3px solid #COLOR;...">
         private static readonly Regex BlockquoteRegex = new Regex(
-            @"<p\s+style=""[^""]*border-left:3px solid #ccc[^""]*"">([\s\S]*?)</p>",
+            @"<p\s+style=""[^""]*border-left:3px solid #[A-Fa-f0-9]+[^""]*"">([\s\S]*?)</p>",
+            RegexOptions.Compiled);
+
+        // Definition list term: <p style="font-weight:bold;margin:8px 0 2px 0">
+        private static readonly Regex DefTermRegex = new Regex(
+            @"<p\s+style=""font-weight:bold;margin:8px 0 2px 0"">([\s\S]*?)</p>",
+            RegexOptions.Compiled);
+
+        // Definition list description: <p style="margin:2px 0 8px 28px;color:#555">
+        private static readonly Regex DefDescRegex = new Regex(
+            @"<p\s+style=""margin:2px 0 8px 28px;color:#555"">([\s\S]*?)</p>",
             RegexOptions.Compiled);
 
         // Horizontal rule
@@ -168,7 +178,21 @@ namespace MDNote.Core
             // 4. Headings
             result = HeadingRegex.Replace(result, ConvertHeading);
 
-            // 5. Blockquotes
+            // 5. Definition lists (before blockquotes — both use styled <p>)
+            result = DefTermRegex.Replace(result, match =>
+            {
+                var term = HtmlTagRegex.Replace(match.Groups[1].Value, "");
+                term = WebUtility.HtmlDecode(term).Trim();
+                return $"\n{term}";
+            });
+            result = DefDescRegex.Replace(result, match =>
+            {
+                var desc = HtmlTagRegex.Replace(match.Groups[1].Value, "");
+                desc = WebUtility.HtmlDecode(desc).Trim();
+                return $"\n:   {desc}\n";
+            });
+
+            // 6. Blockquotes
             result = BlockquoteRegex.Replace(result, match =>
             {
                 var inner = match.Groups[1].Value;
@@ -186,7 +210,9 @@ namespace MDNote.Core
             result = OlRegex.Replace(result, ConvertOrderedList);
 
             // 7. Checkbox unicode characters
+            result = result.Replace("\u2611\u00A0", "- [x] ");
             result = result.Replace("\u2611", "- [x]");
+            result = result.Replace("\u2610\u00A0", "- [ ] ");
             result = result.Replace("\u2610", "- [ ]");
 
             // 8. Highlight

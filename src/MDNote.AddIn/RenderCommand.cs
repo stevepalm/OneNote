@@ -34,9 +34,11 @@ namespace MDNote
         /// </summary>
         public void RenderPage()
         {
+            string pageId = null;
+
             try
             {
-                var pageId = _interop.GetActivePageId();
+                pageId = _interop.GetActivePageId();
                 if (string.IsNullOrEmpty(pageId))
                 {
                     NotificationHelper.ShowWarning("No active page found.");
@@ -85,8 +87,20 @@ namespace MDNote
                     ErrorHandler.Log($"First render. Detection score: {detection.Score:F2}");
                 }
 
+                var lineCount = markdown.Split('\n').Length;
+                if (lineCount > 500)
+                    NotificationHelper.ShowSuccess("Rendering large document...", 10000);
+
                 var converter = new MarkdownConverter();
                 var result = converter.Convert(markdown, SettingsManager.Current.ToConversionOptions());
+
+                if (result.PipelineTimings.Count > 0)
+                {
+                    var total = result.PipelineTimings.Values.Sum();
+                    var timingLog = string.Join(", ", result.PipelineTimings.Select(
+                        kv => $"{kv.Key}={kv.Value}ms"));
+                    ErrorHandler.Log($"Pipeline: {total}ms total, {lineCount} lines. {timingLog}");
+                }
 
                 var writer = new PageWriter(_interop);
                 writer.RenderMarkdownToPage(pageId, result, markdown);
@@ -95,6 +109,25 @@ namespace MDNote
             }
             catch (Exception ex)
             {
+                // Attempt to restore previous page state
+                if (!string.IsNullOrEmpty(pageId))
+                {
+                    var backup = PageStateBackup.PopLatest(pageId);
+                    if (backup != null)
+                    {
+                        try
+                        {
+                            _interop.UpdatePageContent(backup);
+                            ErrorHandler.HandleError("Render failed. Page restored to previous state.", ex);
+                            return;
+                        }
+                        catch (Exception restoreEx)
+                        {
+                            ErrorHandler.LogError("Restore also failed", restoreEx);
+                        }
+                    }
+                }
+
                 ErrorHandler.HandleError("Render failed. Your content is safe.", ex);
             }
         }

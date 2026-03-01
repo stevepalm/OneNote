@@ -11,7 +11,10 @@ namespace MDNote.OneNote
         private static readonly XNamespace OneNs =
             "http://schemas.microsoft.com/office/onenote/2013/onenote";
 
-        private readonly IApplication _app;
+        private static readonly object UpdateLock = new object();
+
+        private IApplication _app;
+        private readonly bool _isStandalone;
 
         /// <summary>
         /// Wraps an existing OneNote Application COM object
@@ -20,6 +23,7 @@ namespace MDNote.OneNote
         public OneNoteInterop(object applicationObject)
         {
             _app = (IApplication)applicationObject;
+            _isStandalone = false;
         }
 
         /// <summary>
@@ -29,6 +33,7 @@ namespace MDNote.OneNote
         public OneNoteInterop()
         {
             _app = new Application();
+            _isStandalone = true;
         }
 
         public string GetActivePageId()
@@ -81,11 +86,14 @@ namespace MDNote.OneNote
 
         public void UpdatePageContent(string xml)
         {
-            RetryOnBusy(() =>
+            lock (UpdateLock)
             {
-                _app.UpdatePageContent(xml, DateTime.MinValue, XMLSchema.xs2013, true);
-                return true;
-            });
+                RetryOnBusy(() =>
+                {
+                    _app.UpdatePageContent(xml, DateTime.MinValue, XMLSchema.xs2013, true);
+                    return true;
+                });
+            }
         }
 
         public void NavigateToPage(string pageId)
@@ -112,11 +120,14 @@ namespace MDNote.OneNote
         }
 
         /// <summary>
-        /// Retries a COM operation up to 3 times when OneNote reports busy.
+        /// Retries a COM operation up to 3 times when OneNote reports busy
+        /// or on transient disconnection errors.
         /// </summary>
         private T RetryOnBusy<T>(Func<T> action, int maxRetries = 3)
         {
             const uint HR_COM_BUSY = 0x8001010A;
+            const uint HR_RPC_DISCONNECTED = 0x80010108;
+            const uint HR_RPC_SERVER_UNAVAILABLE = 0x800706BA;
             int retries = 0;
 
             while (true)
@@ -125,11 +136,24 @@ namespace MDNote.OneNote
                 {
                     return action();
                 }
-                catch (COMException ex) when ((uint)ex.ErrorCode == HR_COM_BUSY
-                                               && retries < maxRetries)
+                catch (COMException ex) when (
+                    ((uint)ex.ErrorCode == HR_COM_BUSY ||
+                     (uint)ex.ErrorCode == HR_RPC_DISCONNECTED ||
+                     (uint)ex.ErrorCode == HR_RPC_SERVER_UNAVAILABLE)
+                    && retries < maxRetries)
                 {
                     retries++;
                     System.Threading.Thread.Sleep(250 * retries);
+
+                    // On disconnection, attempt to re-acquire the COM object
+                    // (only for standalone instances — add-in proxies can't reconnect)
+                    if (_isStandalone &&
+                        ((uint)ex.ErrorCode == HR_RPC_DISCONNECTED ||
+                         (uint)ex.ErrorCode == HR_RPC_SERVER_UNAVAILABLE))
+                    {
+                        try { _app = new Application(); }
+                        catch { /* reconnect failed, next retry will also fail */ }
+                    }
                 }
             }
         }

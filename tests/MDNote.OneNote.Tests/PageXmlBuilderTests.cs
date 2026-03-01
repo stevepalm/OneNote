@@ -407,5 +407,76 @@ namespace MDNote.OneNote.Tests
 
             page.Elements(OneNs + "Outline").Should().BeEmpty();
         }
+
+        // --- ClearRenderedOutlines tests ---
+
+        [Fact]
+        public void ClearRenderedOutlines_RemovesOnlyMarkedOutlines()
+        {
+            var builder = new PageXmlBuilder("page-1")
+                .AddRenderedOutline("<p>Rendered content</p>")
+                .AddOutline("<p>User content</p>");
+
+            builder.ClearRenderedOutlines();
+            var xml = builder.Build();
+            var page = XElement.Parse(xml);
+
+            var outlines = page.Elements(OneNs + "Outline").ToList();
+            outlines.Should().HaveCount(1);
+            outlines[0].Descendants(OneNs + "T").First().Value.Should().Contain("User content");
+        }
+
+        [Fact]
+        public void ClearRenderedOutlines_PreservesUnmarkedOutlines()
+        {
+            var builder = new PageXmlBuilder("page-1")
+                .AddOutline("<p>Ink/drawing content</p>")
+                .AddOutline("<p>Another user outline</p>");
+
+            var removed = builder.ClearRenderedOutlines();
+            var xml = builder.Build();
+            var page = XElement.Parse(xml);
+
+            removed.Should().BeFalse();
+            page.Elements(OneNs + "Outline").Should().HaveCount(2);
+        }
+
+        [Fact]
+        public void ClearRenderedOutlines_NoMarkedOutlines_ReturnsFalse()
+        {
+            var builder = new PageXmlBuilder("page-1")
+                .AddOutline("<p>Regular content</p>");
+
+            var removed = builder.ClearRenderedOutlines();
+            removed.Should().BeFalse();
+        }
+
+        [Fact]
+        public void AddRenderedOutline_ContainsMarker()
+        {
+            var xml = new PageXmlBuilder("page-1")
+                .AddRenderedOutline("<p>Content</p>")
+                .Build();
+            var page = XElement.Parse(xml);
+
+            var firstT = page.Descendants(OneNs + "T").First();
+            firstT.Value.Should().Contain("<!-- md-note-rendered -->");
+        }
+
+        [Fact]
+        public void ClearRenderedOutlines_MultipleMarked_RemovesAll()
+        {
+            var builder = new PageXmlBuilder("page-1")
+                .AddRenderedOutline("<p>Rendered 1</p>")
+                .AddRenderedOutline("<p>Rendered 2</p>")
+                .AddOutline("<p>Preserved</p>");
+
+            var removed = builder.ClearRenderedOutlines();
+            var xml = builder.Build();
+            var page = XElement.Parse(xml);
+
+            removed.Should().BeTrue();
+            page.Elements(OneNs + "Outline").Should().HaveCount(1);
+        }
     }
 }

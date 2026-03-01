@@ -18,30 +18,34 @@
             id="btnRenderSelection"
             label="Render Selection"
             imageMso="RefreshAll"
-            size="normal"
+            size="large"
             onAction="OnRenderSelection"
             keytip="RS" />
-        </group>
-
-        <group id="grpEdit" label="Edit">
           <toggleButton
             id="btnLiveMode"
             label="Live Mode"
-            imageMso="BlogOpenExisting"
+            imageMso="PlayMacro"
             size="large"
             onAction="OnToggleLiveMode"
             getPressed="GetLiveModePressed"
             keytip="L" />
+        </group>
+
+        <group id="grpSource" label="Source">
           <button
             id="btnToggleSource"
             label="Toggle Source"
             imageMso="ViewCode"
-            size="normal"
+            size="large"
             onAction="OnToggleSource"
             keytip="TS" />
-        </group>
-
-        <group id="grpTransfer" label="Transfer">
+          <button
+            id="btnExportFile"
+            label="Export File"
+            imageMso="FileSaveAs"
+            size="large"
+            onAction="OnExportFile"
+            keytip="EF" />
           <button
             id="btnExportClipboard"
             label="Export Clipboard"
@@ -50,24 +54,17 @@
             onAction="OnExportClipboard"
             keytip="EC" />
           <button
-            id="btnExportFile"
-            label="Export File"
-            imageMso="FileSaveAs"
-            size="normal"
-            onAction="OnExportFile"
-            keytip="EF" />
-          <button
             id="btnImportMd"
             label="Import MD"
             imageMso="FileOpen"
-            size="normal"
+            size="large"
             onAction="OnImportMarkdown"
             keytip="IM" />
           <button
             id="btnPasteRender"
-            label="Paste &amp; Render"
-            imageMso="PasteSpecial"
-            size="normal"
+            label="Paste Render"
+            imageMso="Paste"
+            size="large"
             onAction="OnPasteRender"
             keytip="PR" />
         </group>
@@ -76,7 +73,7 @@
           <button
             id="btnInsertToc"
             label="Insert TOC"
-            imageMso="TableOfContentsInsert"
+            imageMso="IndexInsert"
             size="large"
             onAction="OnInsertToc"
             keytip="T" />
@@ -84,14 +81,14 @@
             id="btnSettings"
             label="Settings"
             imageMso="ControlProperties"
-            size="normal"
+            size="large"
             onAction="OnOpenSettings"
             keytip="S" />
           <button
             id="btnAbout"
             label="About"
             imageMso="Info"
-            size="normal"
+            size="large"
             onAction="OnShowAbout"
             keytip="A" />
         </group>

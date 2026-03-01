@@ -3,7 +3,6 @@ namespace MDNote
     using MDNote.Core;
     using System;
     using System.Drawing;
-    using System.Reflection;
     using System.Runtime.InteropServices;
     using System.Windows.Forms;
 
@@ -39,8 +38,8 @@ namespace MDNote
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(440, 380);
-            BackColor = Color.FromArgb(30, 30, 30);
-            ForeColor = Color.White;
+            BackColor = SystemColors.Control;
+            ForeColor = SystemColors.ControlText;
 
             _tabs = new TabControl
             {
@@ -53,7 +52,6 @@ namespace MDNote
             BuildRenderingTab();
             BuildBehaviorTab();
             BuildExportTab();
-            BuildAboutTab();
 
             BuildBottomButtons();
 
@@ -71,9 +69,9 @@ namespace MDNote
                 Location = new Point(160, y - 2),
                 Size = new Size(200, 24),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(55, 55, 55),
-                ForeColor = Color.White
+                FlatStyle = FlatStyle.Standard,
+                BackColor = SystemColors.Window,
+                ForeColor = SystemColors.WindowText
             };
             _cmbTheme.Items.AddRange(new object[] { "Dark", "Light" });
             tab.Controls.Add(_cmbTheme);
@@ -90,9 +88,9 @@ namespace MDNote
             {
                 Location = new Point(160, y - 2),
                 Size = new Size(200, 24),
-                BackColor = Color.FromArgb(55, 55, 55),
-                ForeColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                BackColor = SystemColors.Window,
+                ForeColor = SystemColors.WindowText,
+                BorderStyle = BorderStyle.Fixed3D
             };
             tab.Controls.Add(_txtFontFamily);
 
@@ -114,9 +112,9 @@ namespace MDNote
                 Location = new Point(160, y - 2),
                 Size = new Size(200, 24),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(55, 55, 55),
-                ForeColor = Color.White
+                FlatStyle = FlatStyle.Standard,
+                BackColor = SystemColors.Window,
+                ForeColor = SystemColors.WindowText
             };
             _cmbPasteMode.Items.AddRange(new object[] { "Off", "Prompt", "Auto" });
             tab.Controls.Add(_cmbPasteMode);
@@ -143,9 +141,9 @@ namespace MDNote
             {
                 Location = new Point(16, y),
                 Size = new Size(300, 24),
-                BackColor = Color.FromArgb(55, 55, 55),
-                ForeColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                BackColor = SystemColors.Window,
+                ForeColor = SystemColors.WindowText,
+                BorderStyle = BorderStyle.Fixed3D
             };
             tab.Controls.Add(_txtExportPath);
 
@@ -154,11 +152,8 @@ namespace MDNote
                 Text = "Browse...",
                 Location = new Point(322, y - 1),
                 Size = new Size(70, 26),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White
+                FlatStyle = FlatStyle.System
             };
-            btnBrowse.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 80);
             btnBrowse.Click += (s, e) =>
             {
                 using (var dlg = new FolderBrowserDialog())
@@ -178,60 +173,11 @@ namespace MDNote
             _tabs.TabPages.Add(tab);
         }
 
-        private void BuildAboutTab()
-        {
-            var tab = CreateTab("About");
-
-            var version = Assembly.GetExecutingAssembly().GetName().Version;
-            var addinPath = Assembly.GetExecutingAssembly().Location;
-            var clrVersion = Environment.Version;
-
-            int y = 12;
-            var lblTitle = new Label
-            {
-                Text = "MD Note",
-                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
-                ForeColor = Color.White,
-                AutoSize = true,
-                Location = new Point(16, y)
-            };
-            tab.Controls.Add(lblTitle);
-
-            y += 36;
-            AddLabel(tab, $"Version {version.Major}.{version.Minor}.{version.Build}", 16, y,
-                Color.FromArgb(180, 180, 180));
-
-            y += 24;
-            AddLabel(tab, "Markdown rendering for OneNote Desktop", 16, y,
-                Color.FromArgb(180, 180, 180));
-
-            y += 32;
-            AddLabel(tab, "Credits:", 16, y);
-            y += 20;
-            AddLabel(tab, "  Markdig \u2014 Markdown parsing", 16, y, Color.FromArgb(160, 160, 160));
-            y += 18;
-            AddLabel(tab, "  ColorCode \u2014 Syntax highlighting", 16, y, Color.FromArgb(160, 160, 160));
-
-            y += 28;
-            AddLabel(tab, "Quality:", 16, y);
-            y += 20;
-            AddLabel(tab, "  317 automated tests passing", 16, y, Color.FromArgb(100, 200, 100));
-
-            y += 28;
-            AddLabel(tab, "System:", 16, y);
-            y += 20;
-            AddLabel(tab, $"  Add-in: {addinPath}", 16, y, Color.FromArgb(140, 140, 140));
-            y += 18;
-            AddLabel(tab, $"  .NET CLR: {clrVersion}", 16, y, Color.FromArgb(140, 140, 140));
-
-            _tabs.TabPages.Add(tab);
-        }
-
         private void BuildBottomButtons()
         {
             int y = 338;
 
-            var btnOk = CreateDialogButton("OK", new Point(180, y), Color.FromArgb(46, 125, 50));
+            var btnOk = CreateDialogButton("OK", new Point(180, y));
             btnOk.Click += (s, e) =>
             {
                 SaveUIToSettings();
@@ -240,7 +186,7 @@ namespace MDNote
             };
             Controls.Add(btnOk);
 
-            var btnCancel = CreateDialogButton("Cancel", new Point(256, y), Color.FromArgb(60, 60, 60));
+            var btnCancel = CreateDialogButton("Cancel", new Point(256, y));
             btnCancel.Click += (s, e) =>
             {
                 DialogResult = DialogResult.Cancel;
@@ -248,11 +194,15 @@ namespace MDNote
             };
             Controls.Add(btnCancel);
 
-            var btnApply = CreateDialogButton("Apply", new Point(332, y), Color.FromArgb(21, 101, 192));
+            var btnApply = CreateDialogButton("Apply", new Point(332, y));
             btnApply.Click += (s, e) => SaveUIToSettings();
             Controls.Add(btnApply);
 
-            var btnReset = CreateDialogButton("Reset", new Point(16, y), Color.FromArgb(120, 50, 50));
+            var btnReset = CreateDialogButton("Reset", new Point(16, y));
+            btnReset.FlatStyle = FlatStyle.Flat;
+            btnReset.ForeColor = Color.FromArgb(180, 40, 40);
+            btnReset.BackColor = SystemColors.Control;
+            btnReset.FlatAppearance.BorderColor = SystemColors.ControlDark;
             btnReset.Click += (s, e) =>
             {
                 SettingsManager.Instance.ResetToDefaults();
@@ -316,8 +266,8 @@ namespace MDNote
         {
             return new TabPage(text)
             {
-                BackColor = Color.FromArgb(40, 40, 40),
-                ForeColor = Color.White,
+                BackColor = SystemColors.Window,
+                ForeColor = SystemColors.WindowText,
                 Padding = new Padding(4)
             };
         }
@@ -328,7 +278,7 @@ namespace MDNote
             var lbl = new Label
             {
                 Text = text,
-                ForeColor = foreColor ?? Color.White,
+                ForeColor = foreColor ?? SystemColors.ControlText,
                 Font = new Font("Segoe UI", 9.5f),
                 AutoSize = true,
                 Location = new Point(x, y)
@@ -342,7 +292,7 @@ namespace MDNote
             var chk = new CheckBox
             {
                 Text = text,
-                ForeColor = Color.White,
+                ForeColor = SystemColors.ControlText,
                 Font = new Font("Segoe UI", 9.5f),
                 AutoSize = true,
                 Location = new Point(x, y)
@@ -361,27 +311,23 @@ namespace MDNote
                 Minimum = min,
                 Maximum = max,
                 Value = defaultValue,
-                BackColor = Color.FromArgb(55, 55, 55),
-                ForeColor = Color.White
+                BackColor = SystemColors.Window,
+                ForeColor = SystemColors.WindowText
             };
             parent.Controls.Add(nud);
             return nud;
         }
 
-        private static Button CreateDialogButton(string text, Point location, Color bgColor)
+        private static Button CreateDialogButton(string text, Point location)
         {
             var btn = new Button
             {
                 Text = text,
                 Location = location,
                 Size = new Size(70, 30),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = bgColor,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9f),
-                Cursor = Cursors.Hand
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 9f)
             };
-            btn.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 80);
             return btn;
         }
     }

@@ -19,9 +19,8 @@ namespace MDNote
             MinimizeBox = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(360, 360);
-            BackColor = Color.FromArgb(30, 30, 30);
-            ForeColor = Color.White;
+            BackColor = SystemColors.Window;
+            ForeColor = SystemColors.WindowText;
 
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             var addinPath = Assembly.GetExecutingAssembly().Location;
@@ -33,7 +32,7 @@ namespace MDNote
             {
                 Text = "MD Note",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = SystemColors.WindowText,
                 AutoSize = true,
                 Location = new Point(20, y)
             };
@@ -41,51 +40,50 @@ namespace MDNote
 
             y += 40;
             AddLabel($"Version {version.Major}.{version.Minor}.{version.Build}", 20, y,
-                Color.FromArgb(180, 180, 180));
+                SystemColors.GrayText);
 
             y += 24;
             AddLabel("Markdown rendering for OneNote Desktop", 20, y,
-                Color.FromArgb(180, 180, 180));
+                SystemColors.GrayText);
 
             y += 36;
-            AddLabel("Credits:", 20, y, Color.White, FontStyle.Bold);
+            AddLabel("Credits:", 20, y, SystemColors.WindowText, FontStyle.Bold);
             y += 22;
-            AddLabel("  Markdig \u2014 Markdown parsing", 20, y, Color.FromArgb(160, 160, 160));
+            AddLabel("  Markdig \u2014 Markdown parsing", 20, y, SystemColors.GrayText);
             y += 20;
-            AddLabel("  ColorCode \u2014 Syntax highlighting", 20, y, Color.FromArgb(160, 160, 160));
-            y += 20;
-            AddLabel("  Mermaid.js \u2014 Diagram support", 20, y, Color.FromArgb(160, 160, 160));
+            AddLabel("  ColorCode \u2014 Syntax highlighting", 20, y, SystemColors.GrayText);
 
             y += 32;
-            AddLabel("Quality:", 20, y, Color.White, FontStyle.Bold);
+            AddLabel("Quality:", 20, y, SystemColors.WindowText, FontStyle.Bold);
             y += 22;
-            AddLabel("  317 automated tests passing", 20, y, Color.FromArgb(100, 200, 100));
+            AddLabel("  317 automated tests passing", 20, y, Color.FromArgb(46, 125, 50));
 
             y += 28;
-            AddLabel("System:", 20, y, Color.White, FontStyle.Bold);
+            AddLabel("System:", 20, y, SystemColors.WindowText, FontStyle.Bold);
             y += 22;
-            AddLabel($"  Add-in: {addinPath}", 20, y, Color.FromArgb(140, 140, 140));
-            y += 20;
-            AddLabel($"  .NET CLR: {clrVersion}", 20, y, Color.FromArgb(140, 140, 140));
+            var lblPath = AddLabel($"  Add-in: {addinPath}", 20, y, SystemColors.GrayText);
+            y += Math.Max(20, lblPath.PreferredHeight);
+            AddLabel($"  .NET CLR: {clrVersion}", 20, y, SystemColors.GrayText);
+
+            y += 28;
 
             var btnOk = new Button
             {
                 Text = "OK",
                 DialogResult = DialogResult.OK,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
+                FlatStyle = FlatStyle.System,
                 Font = new Font("Segoe UI", 9f),
                 Size = new Size(80, 30),
-                Location = new Point(140, 320),
-                Cursor = Cursors.Hand
+                Location = new Point((360 - 80) / 2, y)
             };
-            btnOk.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 80);
             Controls.Add(btnOk);
             AcceptButton = btnOk;
+
+            y += 30 + 12;
+            ClientSize = new Size(360, y);
         }
 
-        private void AddLabel(string text, int x, int y, Color foreColor,
+        private Label AddLabel(string text, int x, int y, Color foreColor,
             FontStyle style = FontStyle.Regular)
         {
             var lbl = new Label
@@ -98,6 +96,7 @@ namespace MDNote
                 MaximumSize = new Size(320, 0)
             };
             Controls.Add(lbl);
+            return lbl;
         }
 
         public static void ShowAboutDialog()

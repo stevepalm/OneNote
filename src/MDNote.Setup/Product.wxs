@@ -45,12 +45,13 @@
       Condition="Installed OR ONENOTE_FOUND"
       Message="OneNote Desktop (Microsoft 365) must be installed before installing MD Note." />
 
-    <!-- Detect OneNote via registry -->
+    <!-- Detect OneNote via HKCU registry (works without elevation for C2R/MSI/Store) -->
     <Property Id="ONENOTE_FOUND">
       <RegistrySearch
         Id="FindOneNote"
-        Root="HKLM"
-        Key="SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\onenote.exe"
+        Root="HKCU"
+        Key="SOFTWARE\Microsoft\Office\16.0\OneNote"
+        Name="FirstBootStatus"
         Type="raw" />
     </Property>
 
@@ -223,7 +224,16 @@
           <RegistryValue Name="Assembly" Type="string"
                          Value="MDNote.AddIn, Version=1.0.9.0, Culture=neutral, PublicKeyToken=null" />
           <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
-          <RegistryValue Name="CodeBase" Type="string" Value="[INSTALLFOLDER]MDNote.AddIn.dll" />
+          <RegistryValue Name="CodeBase" Type="string" Value="file:///[INSTALLFOLDER]MDNote.AddIn.dll" />
+
+          <!-- Version-specific subkey (required by .NET COM shim) -->
+          <RegistryKey Key="1.0.9.0">
+            <RegistryValue Name="Class" Type="string" Value="MDNote.AddIn" />
+            <RegistryValue Name="Assembly" Type="string"
+                           Value="MDNote.AddIn, Version=1.0.9.0, Culture=neutral, PublicKeyToken=null" />
+            <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
+            <RegistryValue Name="CodeBase" Type="string" Value="file:///[INSTALLFOLDER]MDNote.AddIn.dll" />
+          </RegistryKey>
         </RegistryKey>
 
         <RegistryKey Key="ProgId">

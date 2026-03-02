@@ -11,7 +11,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <!-- VS install path for Office PIA references; override via environment or Directory.Build.props -->
-    <VSInstallDir Condition="'$(VSInstallDir)' == ''">C:\Program Files\Microsoft Visual Studio\18\Community\</VSInstallDir>
+    <VSInstallDir Condition="'$(VSInstallDir)' == ''">C:\Program Files\Microsoft Visual Studio\18\Insiders\</VSInstallDir>
   </PropertyGroup>
 
   <ItemGroup>

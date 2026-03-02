@@ -851,10 +851,16 @@ Normal paragraph.
             var oe = page.Descendants(OneNs + "OE")
                 .FirstOrDefault(o => o.Element(OneNs + "List") != null);
             oe.Should().NotBeNull("list marker should produce a native list OE");
-            oe.Element(OneNs + "List")
-              .Element(OneNs + "Number").Should().NotBeNull();
+            var number = oe.Element(OneNs + "List")
+              .Element(OneNs + "Number");
+            number.Should().NotBeNull();
+            number.Attribute("numberFormat").Should().NotBeNull("OneNote requires numberFormat");
+            number.Attribute("numberFormat").Value.Should().Be("##.");
             oe.Element(OneNs + "T").Value.Should().Contain("First item");
             oe.Element(OneNs + "T").Value.Should().NotContain("list-number");
+
+            // Verify XML contains numberFormat (what OneNote validates)
+            xml.Should().Contain("numberFormat");
         }
 
         // --- Table header shading ---

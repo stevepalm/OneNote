@@ -130,7 +130,8 @@ Write-Host "  ProgId created."
 # CLSID with full InprocServer32
 $hkcuClsid = "HKCU:\SOFTWARE\Classes\CLSID\$guid"
 New-Item -Path "$hkcuClsid\InprocServer32" -Force | Out-Null
-New-Item -Path "$hkcuClsid\InprocServer32\0.1.0.0" -Force | Out-Null
+$asmVersion = $asm.GetName().Version.ToString()
+New-Item -Path "$hkcuClsid\InprocServer32\$asmVersion" -Force | Out-Null
 New-Item -Path "$hkcuClsid\ProgId" -Force | Out-Null
 New-Item -Path "$hkcuClsid\Implemented Categories\{62C8FE65-4EBB-45e7-B440-6E39B2CDBF29}" -Force | Out-Null
 New-Item -Path "$hkcuClsid\Programmable" -Force | Out-Null
@@ -153,10 +154,10 @@ Set-ItemProperty -Path "$hkcuClsid\InprocServer32" -Name 'RuntimeVersion' -Value
 Set-ItemProperty -Path "$hkcuClsid\InprocServer32" -Name 'CodeBase' -Value $codeBase
 
 # Version-specific subkey
-Set-ItemProperty -Path "$hkcuClsid\InprocServer32\0.1.0.0" -Name 'Class' -Value $className
-Set-ItemProperty -Path "$hkcuClsid\InprocServer32\0.1.0.0" -Name 'Assembly' -Value $asmFullName
-Set-ItemProperty -Path "$hkcuClsid\InprocServer32\0.1.0.0" -Name 'RuntimeVersion' -Value 'v4.0.30319'
-Set-ItemProperty -Path "$hkcuClsid\InprocServer32\0.1.0.0" -Name 'CodeBase' -Value $codeBase
+Set-ItemProperty -Path "$hkcuClsid\InprocServer32\$asmVersion" -Name 'Class' -Value $className
+Set-ItemProperty -Path "$hkcuClsid\InprocServer32\$asmVersion" -Name 'Assembly' -Value $asmFullName
+Set-ItemProperty -Path "$hkcuClsid\InprocServer32\$asmVersion" -Name 'RuntimeVersion' -Value 'v4.0.30319'
+Set-ItemProperty -Path "$hkcuClsid\InprocServer32\$asmVersion" -Name 'CodeBase' -Value $codeBase
 
 Set-ItemProperty -Path "$hkcuClsid\ProgId" -Name '(default)' -Value $progId
 Write-Host "  CLSID registered." -ForegroundColor Green

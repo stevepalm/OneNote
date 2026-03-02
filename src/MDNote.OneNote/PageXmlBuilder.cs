@@ -420,6 +420,11 @@ namespace MDNote.OneNote
             @"background-color:\s*(#[A-Fa-f0-9]{6})",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        // Regex to detect font-weight:bold in inline style (for table header cells)
+        private static readonly Regex FontWeightBoldRegex = new Regex(
+            @"font-weight:\s*bold",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         // Regex to strip table-related tags from content destined for CDATA.
         // OneNote does not support HTML table tags in CDATA — only native one:Table XML.
         private static readonly Regex TableTagRegex = new Regex(
@@ -445,6 +450,7 @@ namespace MDNote.OneNote
             @"\s*style=""\s*""",
             RegexOptions.Compiled);
 
+
         private static string StripTableTags(string html)
         {
             return TableTagRegex.Replace(html, "");
@@ -461,18 +467,14 @@ namespace MDNote.OneNote
         {
             var oeChildren = new XElement(OneNs + "OEChildren");
             var blocks = SplitHtmlBlocks(html);
-            bool prevWasListItem = false;
+            var pendingListItems = new List<XElement>();
 
             foreach (var block in blocks)
             {
                 if (block.StartsWith("<table", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Insert spacer at list→non-list transition
-                    if (prevWasListItem)
-                    {
-                        oeChildren.Add(BuildSpacerOE());
-                        prevWasListItem = false;
-                    }
+                    // Flush pending list items at list→non-list transition
+                    FlushListItems(oeChildren, pendingListItems);
 
                     // Convert HTML table to OneNote native table XML
                     var tableOe = BuildNativeTable(block);
@@ -503,12 +505,11 @@ namespace MDNote.OneNote
 
                 if (bulletMatch.Success)
                 {
-                    prevWasListItem = true;
                     var content = ListBulletMarkerRegex.Replace(sanitized, "");
                     content = MarginLeftRegex.Replace(content, "");
                     content = EmptyStyleRegex.Replace(content, "");
 
-                    oeChildren.Add(new XElement(OneNs + "OE",
+                    pendingListItems.Add(new XElement(OneNs + "OE",
                         new XElement(OneNs + "List",
                             new XElement(OneNs + "Bullet",
                                 new XAttribute("bullet", "2"),
@@ -520,27 +521,23 @@ namespace MDNote.OneNote
 
                 if (numberMatch.Success)
                 {
-                    prevWasListItem = true;
                     var content = ListNumberMarkerRegex.Replace(sanitized, "");
                     content = MarginLeftRegex.Replace(content, "");
                     content = EmptyStyleRegex.Replace(content, "");
 
-                    oeChildren.Add(new XElement(OneNs + "OE",
+                    pendingListItems.Add(new XElement(OneNs + "OE",
                         new XElement(OneNs + "List",
                             new XElement(OneNs + "Number",
                                 new XAttribute("numberSequence", "0"),
-                                new XAttribute("fontSize", "11.0"))),
+                                new XAttribute("numberFormat", "##."),
+                                new XAttribute("fontSize", "9.0"))),
                         new XElement(OneNs + "T",
                             new XCData(content))));
                     continue;
                 }
 
-                // Insert spacer at list→non-list transition
-                if (prevWasListItem)
-                {
-                    oeChildren.Add(BuildSpacerOE());
-                    prevWasListItem = false;
-                }
+                // Flush pending list items at list→non-list transition
+                FlushListItems(oeChildren, pendingListItems);
 
                 oeChildren.Add(
                     new XElement(OneNs + "OE",
@@ -548,7 +545,30 @@ namespace MDNote.OneNote
                             new XCData(sanitized))));
             }
 
+            // Flush any remaining list items
+            FlushListItems(oeChildren, pendingListItems);
+
             return oeChildren;
+        }
+
+        /// <summary>
+        /// Wraps collected list items in OE → OEChildren for native OneNote indentation,
+        /// with spacer lines before and after the list group.
+        /// </summary>
+        private void FlushListItems(XElement oeChildren, List<XElement> pendingListItems)
+        {
+            if (pendingListItems.Count == 0) return;
+
+            var innerChildren = new XElement(OneNs + "OEChildren");
+            foreach (var item in pendingListItems)
+            {
+                innerChildren.Add(item);
+            }
+
+            oeChildren.Add(new XElement(OneNs + "OE", innerChildren));
+            oeChildren.Add(BuildSpacerOE());
+
+            pendingListItems.Clear();
         }
 
         /// <summary>
@@ -613,6 +633,10 @@ namespace MDNote.OneNote
                     var bgMatch = BgColorRegex.Match(cellAttrs);
                     if (bgMatch.Success)
                         cell.Add(new XAttribute("shadingColor", bgMatch.Groups[1].Value));
+
+                    // Apply bold from font-weight:bold (header cells converted from <th>)
+                    if (FontWeightBoldRegex.IsMatch(cellAttrs))
+                        cellContent = "<b>" + cellContent + "</b>";
 
                     cell.Add(new XElement(OneNs + "OEChildren",
                         new XElement(OneNs + "OE",

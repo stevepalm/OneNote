@@ -343,9 +343,14 @@ namespace MDNote.Core
                 var level = int.Parse(match.Groups[1].Value);
                 var content = match.Groups[3].Value;
                 var style = GetHeadingStyle(level);
-                // Append a spacer paragraph for visual separation after headings
-                return $"<p style=\"{style}\">{content}</p>" +
-                       $"<p style=\"{BaseFont}\">&nbsp;</p>";
+                // Add spacer paragraphs BEFORE and AFTER headings for visual separation.
+                // OneNote CDATA does not support margin CSS, so spacing must come from
+                // actual paragraph elements. Each becomes a separate OE in the final XML.
+                // The pre-heading spacer separates the heading from preceding content;
+                // the post-heading spacer separates it from the content that follows.
+                return $"<p style=\"{BaseFont}\">&nbsp;</p>" +
+                       $"<p style=\"{style}\">{content}</p>" +
+                       $"<p style=\"font-family:Calibri;font-size:4pt\">&nbsp;</p>";
             });
 
             // 14. Strip <thead>/<tbody> (OneNote doesn't support them)

@@ -142,6 +142,11 @@ namespace MDNote.Core
             @"</?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*/?>",
             RegexOptions.Compiled);
 
+        // Matches HTML comments (<!-- ... -->). OneNote CDATA does not accept comments.
+        private static readonly Regex HtmlCommentRegex = new Regex(
+            @"<!--[\s\S]*?-->",
+            RegexOptions.Compiled);
+
         // Blockquote border colors for nesting levels (innermost → outermost)
         private static readonly string[] BlockquoteBorderColors =
             { "#4a9eff", "#7b68ee", "#ff7043", "#66bb6a", "#ffa726", "#ccc" };
@@ -291,7 +296,10 @@ namespace MDNote.Core
             });
             html = ThCloseRegex.Replace(html, "</td>");
 
-            // 16. Safety net: strip any HTML tags not in OneNote's supported set.
+            // 16. Strip HTML comments — OneNote CDATA does not accept them.
+            html = HtmlCommentRegex.Replace(html, string.Empty);
+
+            // 17. Safety net: strip any HTML tags not in OneNote's supported set.
             //     Runs last so all intentional conversions above have already happened.
             //     Content is preserved; only the unsupported tag wrappers are removed.
             html = AnyHtmlTagRegex.Replace(html, match =>

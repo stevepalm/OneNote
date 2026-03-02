@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using FluentAssertions;
+using MDNote.Core;
+using MDNote.Core.Models;
 using Xunit;
 
 namespace MDNote.OneNote.Tests
@@ -476,7 +480,9 @@ namespace MDNote.OneNote.Tests
             var page = XElement.Parse(xml);
 
             var firstT = page.Descendants(OneNs + "T").First();
-            firstT.Value.Should().Contain("<!-- md-note-rendered -->");
+            firstT.Value.Should().Contain("md-note-rendered");
+            // Marker must be a hidden span, not an HTML comment (OneNote rejects comments)
+            firstT.Value.Should().NotContain("<!--");
         }
 
         [Fact]
@@ -493,6 +499,180 @@ namespace MDNote.OneNote.Tests
 
             removed.Should().BeTrue();
             page.Elements(OneNs + "Outline").Should().HaveCount(1);
+        }
+
+        // --- CDATA validation: full pipeline XML ---
+
+        // Tags that OneNote accepts inside CDATA HTML.
+        private static readonly HashSet<string> CdataAllowedTags =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "p", "br", "span", "div", "a", "ul", "ol", "li",
+                "table", "tr", "td",
+                "h1", "h2", "h3", "h4", "h5", "h6",
+                "b", "em", "strong", "i", "u", "del", "sup", "sub", "cite", "img"
+            };
+
+        private static readonly Regex CdataTagRegex = new Regex(
+            @"</?([a-zA-Z][a-zA-Z0-9]*)\b", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Validates that every CDATA section in the final XML contains only
+        /// OneNote-compatible HTML — no comments, no unsupported tags.
+        /// </summary>
+        private static void AssertAllCdataValid(string xml)
+        {
+            // Extract all CDATA content from the XML string
+            var cdataRegex = new Regex(@"<!\[CDATA\[([\s\S]*?)\]\]>");
+            foreach (Match m in cdataRegex.Matches(xml))
+            {
+                var cdata = m.Groups[1].Value;
+
+                // No HTML comments
+                cdata.Should().NotContain("<!--",
+                    "OneNote CDATA must not contain HTML comments");
+
+                // Only whitelisted tags
+                foreach (Match tag in CdataTagRegex.Matches(cdata))
+                {
+                    var tagName = tag.Groups[1].Value;
+                    CdataAllowedTags.Should().Contain(tagName,
+                        $"CDATA contains unsupported tag <{tagName}>: ...{cdata.Substring(0, Math.Min(200, cdata.Length))}...");
+                }
+            }
+        }
+
+        [Fact]
+        public void FullXml_SimpleMarkdown_AllCdataValid()
+        {
+            var md = "# Hello World\n\nA paragraph with **bold** and `code`.\n";
+            var converter = new MarkdownConverter();
+            var result = converter.Convert(md, new ConversionOptions
+            {
+                EnableSyntaxHighlighting = true,
+                Theme = "dark",
+                InlineAllStyles = true
+            });
+
+            var htmlConverter = new HtmlToOneNoteConverter();
+            var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(
+                MarkdownSourceStorage.EncodeSource(md));
+
+            var xml = new PageXmlBuilder("page-1")
+                .SetPageTitle(result.Title ?? "Test")
+                .AddRenderedOutline(oneNoteHtml + sourceTag)
+                .Build();
+
+            AssertAllCdataValid(xml);
+        }
+
+        [Fact]
+        public void FullXml_CodeBlocksAndTables_AllCdataValid()
+        {
+            var md = @"# Code and Tables
+
+```csharp
+public class Foo<T> { }
+```
+
+```python
+def hello():
+    print('world')
+```
+
+| Col1 | Col2 |
+|------|------|
+| A    | B    |
+
+> A blockquote with **bold**.
+
+Normal paragraph.
+";
+            var converter = new MarkdownConverter();
+            var result = converter.Convert(md, new ConversionOptions
+            {
+                EnableSyntaxHighlighting = true,
+                Theme = "dark",
+                InlineAllStyles = true
+            });
+
+            var htmlConverter = new HtmlToOneNoteConverter();
+            var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(
+                MarkdownSourceStorage.EncodeSource(md));
+
+            var xml = new PageXmlBuilder("page-1")
+                .SetPageTitle(result.Title ?? "Test")
+                .AddRenderedOutline(oneNoteHtml + sourceTag)
+                .Build();
+
+            AssertAllCdataValid(xml);
+
+            // Verify no raw table/pre/code tags leaked into CDATA
+            // (tables should be native one:Table elements, not HTML)
+            var page = XElement.Parse(xml);
+            var cdataContents = page.Descendants(OneNs + "T")
+                .Select(t => t.Value).ToList();
+
+            foreach (var cdata in cdataContents)
+            {
+                cdata.Should().NotContain("<pre>", "pre tags must be converted");
+                cdata.Should().NotContain("<code>", "code tags must be converted");
+                cdata.Should().NotContain("<blockquote>", "blockquotes must be converted");
+            }
+        }
+
+        [Fact]
+        public void FullXml_LargeDocument_AllCdataValid()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("# Large Document");
+            for (int i = 0; i < 50; i++)
+            {
+                sb.AppendLine($"\n## Section {i}");
+                sb.AppendLine($"Text with **bold**, *italic*, `code`, and [link](http://example.com).");
+                sb.AppendLine($"\n```csharp\npublic class S{i} {{ public int V {{ get; set; }} }}\n```");
+                sb.AppendLine($"\n| A | B |\n|---|---|\n| {i} | {i + 1} |");
+                sb.AppendLine($"\n> Quote {i}");
+            }
+            var md = sb.ToString();
+
+            var converter = new MarkdownConverter();
+            var result = converter.Convert(md, new ConversionOptions
+            {
+                EnableSyntaxHighlighting = true,
+                Theme = "dark",
+                InlineAllStyles = true
+            });
+
+            var htmlConverter = new HtmlToOneNoteConverter();
+            var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(
+                MarkdownSourceStorage.EncodeSource(md));
+
+            var xml = new PageXmlBuilder("page-1")
+                .SetPageTitle(result.Title ?? "Test")
+                .AddRenderedOutline(oneNoteHtml + sourceTag)
+                .Build();
+
+            AssertAllCdataValid(xml);
+        }
+
+        [Fact]
+        public void ClearRenderedOutlines_LegacyCommentMarker_StillDetected()
+        {
+            // Simulate a page saved with the old <!-- comment --> marker
+            var existingXml =
+                "<Page xmlns='http://schemas.microsoft.com/office/onenote/2013/onenote' ID='page-1'>" +
+                "<Outline objectID='outline-1'>" +
+                "<Position x='36' y='86.4'/><Size width='576' height='200'/>" +
+                "<OEChildren><OE><T><![CDATA[<!-- md-note-rendered --><p>Old</p>]]></T></OE></OEChildren>" +
+                "</Outline></Page>";
+
+            var builder = PageXmlBuilder.FromPageXml(existingXml);
+            var removed = builder.ClearRenderedOutlines();
+            removed.Should().BeTrue("legacy comment marker should still be detected");
         }
     }
 }

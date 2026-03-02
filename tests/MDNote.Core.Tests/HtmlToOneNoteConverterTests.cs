@@ -515,4 +515,27 @@ public class HtmlToOneNoteConverterTests
         result.Should().NotContain("<aside");
         result.Should().Contain("<p>deep text</p>");
     }
+
+    // --- HTML comment stripping ---
+
+    [Fact]
+    public void ConvertForOneNote_HtmlComments_Stripped()
+    {
+        var html = "<p>Before</p><!-- a comment --><p>After</p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<!--");
+        result.Should().NotContain("-->");
+        result.Should().Contain("Before");
+        result.Should().Contain("After");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_MultilineComment_Stripped()
+    {
+        var html = "<p>Text</p><!-- multi\nline\ncomment --><p>More</p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<!--");
+        result.Should().Contain("Text");
+        result.Should().Contain("More");
+    }
 }

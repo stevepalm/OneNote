@@ -241,7 +241,7 @@ namespace MDNote.OneNote
             foreach (var outline in outlines)
             {
                 var hasMarker = outline.Descendants(OneNs + "T")
-                    .Any(t => t.Value.Contains("<!-- md-note-rendered -->"));
+                    .Any(t => t.Value.Contains("md-note-rendered"));
                 if (hasMarker)
                 {
                     outline.Remove();
@@ -252,6 +252,12 @@ namespace MDNote.OneNote
             return removed;
         }
 
+        // Marker span used to tag outlines produced by MD Note.
+        // Uses a hidden <span> instead of an HTML comment because OneNote's
+        // CDATA parser does not accept <!-- --> comments.
+        private const string RenderedMarker =
+            "<span style=\"display:none\">md-note-rendered</span>";
+
         /// <summary>
         /// Adds an outline with the md-note-rendered marker so it can be identified
         /// for selective clearing on re-render.
@@ -259,7 +265,7 @@ namespace MDNote.OneNote
         public PageXmlBuilder AddRenderedOutline(string html,
             double left = 36.0, double top = 86.4, double width = 576.0, double height = 200.0)
         {
-            return AddOutline("<!-- md-note-rendered -->" + html, left, top, width, height);
+            return AddOutline(RenderedMarker + html, left, top, width, height);
         }
 
         /// <summary>
@@ -272,12 +278,14 @@ namespace MDNote.OneNote
         /// </summary>
         public bool ReplaceOrAddRenderedOutline(string html)
         {
-            var markedHtml = "<!-- md-note-rendered -->" + html;
+            var markedHtml = RenderedMarker + html;
 
-            // First try: find outline with the md-note-rendered marker (re-render)
+            // First try: find outline with the md-note-rendered marker (re-render).
+            // Search for plain text "md-note-rendered" so we also find outlines
+            // saved with the legacy <!-- comment --> format.
             var target = _page.Elements(OneNs + "Outline")
                 .FirstOrDefault(o => o.Descendants(OneNs + "T")
-                    .Any(t => t.Value.Contains("<!-- md-note-rendered -->")));
+                    .Any(t => t.Value.Contains("md-note-rendered")));
 
             // Second try: use the first outline (first render — raw markdown outline)
             if (target == null)

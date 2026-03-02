@@ -76,7 +76,35 @@ namespace MDNote
                 var result = converter.Convert(markdown, SettingsManager.Current.ToConversionOptions());
 
                 var writer = new PageWriter(_interop);
-                writer.RenderMarkdownToPage(newPageId, result, markdown);
+                try
+                {
+                    writer.RenderMarkdownToPage(newPageId, result, markdown);
+                }
+                catch (COMException comEx)
+                    when ((uint)comEx.ErrorCode == OneNoteInterop.HR_INSERTING_HTML)
+                {
+                    // Content too large with source — retry without embedded source
+                    try
+                    {
+                        writer.RenderMarkdownToPageWithoutSource(newPageId, result);
+                        _interop.NavigateToPage(newPageId);
+                        NotificationHelper.ShowWarning(
+                            $"Imported: {Path.GetFileName(dialog.FileName)}\n" +
+                            "(Source not stored \u2014 file too large for round-trip editing)");
+                        return;
+                    }
+                    catch (Exception)
+                    {
+                        // Even without source it failed — clean up and rethrow
+                        TryDeletePage(newPageId);
+                        throw;
+                    }
+                }
+                catch (Exception)
+                {
+                    TryDeletePage(newPageId);
+                    throw;
+                }
 
                 _interop.NavigateToPage(newPageId);
 
@@ -159,6 +187,12 @@ namespace MDNote
             }
 
             return text;
+        }
+
+        private void TryDeletePage(string pageId)
+        {
+            try { _interop.DeletePage(pageId); }
+            catch { /* best-effort cleanup */ }
         }
 
         private static DialogResult ShowConfirmation(string message)

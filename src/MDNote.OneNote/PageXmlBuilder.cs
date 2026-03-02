@@ -304,6 +304,42 @@ namespace MDNote.OneNote
             return false;
         }
 
+        /// <summary>
+        /// Appends a source storage HTML span as a dedicated OE at the end of the
+        /// first md-note-rendered outline's OEChildren. This keeps the potentially
+        /// large Base64 source isolated from content CDATA sections.
+        /// </summary>
+        public PageXmlBuilder AppendSourceToOutline(string sourceHtml)
+        {
+            if (string.IsNullOrEmpty(sourceHtml))
+                return this;
+
+            // Find the rendered outline
+            var target = _page.Elements(OneNs + "Outline")
+                .FirstOrDefault(o => o.Descendants(OneNs + "T")
+                    .Any(t => t.Value.Contains("md-note-rendered")));
+
+            if (target == null)
+                target = _page.Elements(OneNs + "Outline").LastOrDefault();
+
+            if (target == null)
+                return this;
+
+            var oeChildren = target.Element(OneNs + "OEChildren");
+            if (oeChildren == null)
+            {
+                oeChildren = new XElement(OneNs + "OEChildren");
+                target.Add(oeChildren);
+            }
+
+            oeChildren.Add(
+                new XElement(OneNs + "OE",
+                    new XElement(OneNs + "T",
+                        new XCData(sourceHtml))));
+
+            return this;
+        }
+
         // OneNote Page schema element order for UpdatePageContent validation.
         // GetPageContent may return elements out of this order, so we
         // must normalize before sending back via UpdatePageContent.
@@ -379,6 +415,17 @@ namespace MDNote.OneNote
             @"<td[^>]*>([\s\S]*?)</td>",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        // Regex to strip table-related tags from content destined for CDATA.
+        // OneNote does not support HTML table tags in CDATA — only native one:Table XML.
+        private static readonly Regex TableTagRegex = new Regex(
+            @"</?(?:table|tr|td|th|thead|tbody|tfoot)\b[^>]*>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static string StripTableTags(string html)
+        {
+            return TableTagRegex.Replace(html, "");
+        }
+
         private XElement BuildOEChildren(string html)
         {
             var oeChildren = new XElement(OneNs + "OEChildren");
@@ -395,12 +442,25 @@ namespace MDNote.OneNote
                         oeChildren.Add(tableOe);
                         continue;
                     }
+
+                    // BuildNativeTable failed — strip table tags and fall back to text
+                    var fallbackText = StripTableTags(block);
+                    if (!string.IsNullOrWhiteSpace(fallbackText))
+                    {
+                        oeChildren.Add(
+                            new XElement(OneNs + "OE",
+                                new XElement(OneNs + "T",
+                                    new XCData(fallbackText))));
+                    }
+                    continue;
                 }
 
+                // Strip any embedded table tags that may have leaked into non-table blocks
+                var sanitized = StripTableTags(block);
                 oeChildren.Add(
                     new XElement(OneNs + "OE",
                         new XElement(OneNs + "T",
-                            new XCData(block))));
+                            new XCData(sanitized))));
             }
 
             return oeChildren;

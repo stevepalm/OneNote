@@ -99,13 +99,15 @@ namespace MDNote.OneNote
         /// </summary>
         public string GetStoredMarkdownSource()
         {
-            // New: extract from hidden span in Outline content
+            // Extract from hidden span in Outline content.
+            // Handles compressed (mdsrc-gz:), uncompressed (mdsrc:), and
+            // legacy (data-md-source) formats automatically.
             foreach (var t in _page.Elements(OneNs + "Outline")
                 .Descendants(OneNs + "T"))
             {
-                var encoded = MarkdownSourceStorage.ExtractHiddenSource(t.Value);
-                if (encoded != null)
-                    return MarkdownSourceStorage.DecodeSource(encoded);
+                var markdown = MarkdownSourceStorage.ExtractMarkdownSource(t.Value);
+                if (markdown != null)
+                    return markdown;
             }
 
             // Legacy: read from Meta element

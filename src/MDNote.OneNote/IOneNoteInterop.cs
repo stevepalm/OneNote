@@ -13,5 +13,6 @@ namespace MDNote.OneNote
         void NavigateToPage(string pageId);
         string GetCurrentSectionId();
         string CreateNewPage(string sectionId);
+        void DeletePage(string pageId);
     }
 }

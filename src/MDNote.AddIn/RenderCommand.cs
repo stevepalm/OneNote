@@ -103,7 +103,19 @@ namespace MDNote
                 }
 
                 var writer = new PageWriter(_interop);
-                writer.RenderMarkdownToPage(pageId, result, markdown);
+                try
+                {
+                    writer.RenderMarkdownToPage(pageId, result, markdown);
+                }
+                catch (COMException comEx)
+                    when ((uint)comEx.ErrorCode == OneNoteInterop.HR_INSERTING_HTML)
+                {
+                    // Content too large with source — retry without embedded source
+                    writer.RenderMarkdownToPageWithoutSource(pageId, result);
+                    NotificationHelper.ShowWarning(
+                        "Rendered (source too large for round-trip storage)");
+                    return;
+                }
             }
             catch (Exception ex)
             {
@@ -203,12 +215,8 @@ namespace MDNote
                 var htmlConverter = new HtmlToOneNoteConverter();
                 var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
 
-                // Embed source in the outline content
-                var encoded = MarkdownSourceStorage.EncodeSource(selectedText);
-                var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(encoded);
-
                 var writer = new PageWriter(_interop);
-                writer.UpdateOutline(pageId, outlineId, oneNoteHtml + sourceTag);
+                writer.UpdateOutlineWithSource(pageId, outlineId, oneNoteHtml, selectedText);
 
                 NotificationHelper.ShowSuccess("Selection rendered");
             }

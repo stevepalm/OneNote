@@ -119,6 +119,21 @@ namespace MDNote.OneNote
             });
         }
 
+        public void DeletePage(string pageId)
+        {
+            if (string.IsNullOrEmpty(pageId))
+                return;
+
+            RetryOnBusy(() =>
+            {
+                _app.DeleteHierarchy(pageId, DateTime.MinValue);
+                return true;
+            });
+        }
+
+        // OneNote error: HTML content in CDATA is invalid or too large.
+        public const uint HR_INSERTING_HTML = 0x80042009;
+
         /// <summary>
         /// Retries a COM operation up to 3 times when OneNote reports busy
         /// or on transient disconnection errors.

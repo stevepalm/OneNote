@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -21,10 +23,15 @@ namespace MDNote.Core
         // Uses title attribute (OneNote preserves it) instead of data-* which
         // may not be accepted by OneNote's CDATA parser.
         private const string SourceTagPrefix = "<span title=\"mdsrc:";
+        private const string CompressedSourceTagPrefix = "<span title=\"mdsrc-gz:";
         private const string SourceTagSuffix = "\" style=\"display:none\"></span>";
 
         private static readonly Regex SourceTagRegex = new Regex(
             @"<span\s+title=""mdsrc:([^""]+)""\s+style=""display:none""></span>",
+            RegexOptions.Compiled);
+
+        private static readonly Regex CompressedSourceTagRegex = new Regex(
+            @"<span\s+title=""mdsrc-gz:([^""]+)""\s+style=""display:none""></span>",
             RegexOptions.Compiled);
 
         // Legacy format for backward compatibility with pages saved before this change
@@ -49,12 +56,79 @@ namespace MDNote.Core
         }
 
         /// <summary>
-        /// Builds the hidden HTML span that embeds the encoded source
-        /// inside the Outline's CDATA content.
+        /// Compresses markdown source with GZip then Base64-encodes the result.
+        /// Typically achieves 60-80% size reduction on markdown text.
         /// </summary>
-        public static string BuildHiddenSourceHtml(string encodedSource)
+        public static string CompressSource(string markdown)
         {
-            return SourceTagPrefix + encodedSource + SourceTagSuffix;
+            if (string.IsNullOrEmpty(markdown))
+                return string.Empty;
+
+            var bytes = Encoding.UTF8.GetBytes(markdown);
+            using (var output = new MemoryStream())
+            {
+                using (var gz = new GZipStream(output, CompressionLevel.Optimal))
+                {
+                    gz.Write(bytes, 0, bytes.Length);
+                }
+                return Convert.ToBase64String(output.ToArray());
+            }
+        }
+
+        /// <summary>
+        /// Decompresses a GZip+Base64 encoded source back to markdown text.
+        /// </summary>
+        public static string DecompressSource(string compressed)
+        {
+            if (string.IsNullOrEmpty(compressed))
+                return string.Empty;
+
+            var bytes = Convert.FromBase64String(compressed);
+            using (var input = new MemoryStream(bytes))
+            using (var gz = new GZipStream(input, CompressionMode.Decompress))
+            using (var reader = new StreamReader(gz, Encoding.UTF8))
+            {
+                return reader.ReadToEnd();
+            }
+        }
+
+        /// <summary>
+        /// Builds the hidden HTML span that embeds the compressed source
+        /// inside the Outline's CDATA content.
+        /// Accepts raw markdown — compresses automatically.
+        /// </summary>
+        public static string BuildHiddenSourceHtml(string markdown)
+        {
+            if (string.IsNullOrEmpty(markdown))
+                return string.Empty;
+
+            var compressed = CompressSource(markdown);
+            return CompressedSourceTagPrefix + compressed + SourceTagSuffix;
+        }
+
+        /// <summary>
+        /// Extracts and decodes markdown source from HTML containing the hidden span.
+        /// Handles compressed (mdsrc-gz:), uncompressed (mdsrc:), and legacy (data-md-source) formats.
+        /// Returns null if not found.
+        /// </summary>
+        public static string ExtractMarkdownSource(string html)
+        {
+            if (string.IsNullOrEmpty(html))
+                return null;
+
+            // Compressed format (newest)
+            var match = CompressedSourceTagRegex.Match(html);
+            if (match.Success)
+                return DecompressSource(match.Groups[1].Value);
+
+            // Uncompressed format
+            match = SourceTagRegex.Match(html);
+            if (match.Success)
+                return DecodeSource(match.Groups[1].Value);
+
+            // Legacy data-md-source format
+            match = LegacySourceTagRegex.Match(html);
+            return match.Success ? DecodeSource(match.Groups[1].Value) : null;
         }
 
         /// <summary>
@@ -62,6 +136,7 @@ namespace MDNote.Core
         /// Checks current format first, then falls back to legacy data-md-source.
         /// Returns null if not found.
         /// </summary>
+        [Obsolete("Use ExtractMarkdownSource which handles all formats and returns decoded markdown.")]
         public static string ExtractHiddenSource(string html)
         {
             if (string.IsNullOrEmpty(html))
@@ -78,13 +153,14 @@ namespace MDNote.Core
 
         /// <summary>
         /// Strips the hidden source span from HTML content.
-        /// Handles both current and legacy formats.
+        /// Handles compressed, current, and legacy formats.
         /// </summary>
         public static string StripHiddenSource(string html)
         {
             if (string.IsNullOrEmpty(html))
                 return html;
 
+            html = CompressedSourceTagRegex.Replace(html, "");
             html = SourceTagRegex.Replace(html, "");
             html = LegacySourceTagRegex.Replace(html, "");
             return html;

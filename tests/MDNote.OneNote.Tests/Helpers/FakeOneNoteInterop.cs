@@ -94,5 +94,16 @@ namespace MDNote.OneNote.Tests.Helpers
             Pages[NextNewPageId] = pageXml;
             return NextNewPageId;
         }
+
+        public List<string> DeletedPageIds { get; } = new List<string>();
+
+        public void DeletePage(string pageId)
+        {
+            if (!string.IsNullOrEmpty(pageId))
+            {
+                Pages.Remove(pageId);
+                DeletedPageIds.Add(pageId);
+            }
+        }
     }
 }

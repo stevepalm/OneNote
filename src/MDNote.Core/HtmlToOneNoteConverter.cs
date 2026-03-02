@@ -16,7 +16,7 @@ namespace MDNote.Core
         // Also matches the SyntaxHighlighter output: <div style="margin:8px 0;">...<div style="color:...;background-color:...;">...</div></div>
         // Note: <code> wrapper is optional because ColorCode produces <pre>...</pre> without <code>.
         private static readonly Regex HighlightedCodeBlockRegex = new Regex(
-            @"<div style=""margin:8px 0;"">(.*?)<div style=""color:#[A-Fa-f0-9]+;background-color:#[A-Fa-f0-9]+;""><pre[^>]*>(?:<code[^>]*>)?([\s\S]*?)(?:</code>)?</pre></div></div>",
+            @"<div style=""margin:8px 0;"">([\s\S]*?)<div style=""color:#[A-Fa-f0-9]+;background-color:#[A-Fa-f0-9]+;""><pre[^>]*>(?:<code[^>]*>)?([\s\S]*?)(?:</code>)?</pre></div></div>",
             RegexOptions.Compiled);
 
         private static readonly Regex LabelDivRegex = new Regex(

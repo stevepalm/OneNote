@@ -56,7 +56,7 @@ namespace MDNote
             y += 32;
             AddLabel("Quality:", 20, y, SystemColors.WindowText, FontStyle.Bold);
             y += 22;
-            AddLabel("  317 automated tests passing", 20, y, Color.FromArgb(46, 125, 50));
+            AddLabel("  362 automated tests passing", 20, y, Color.FromArgb(46, 125, 50));
 
             y += 28;
             AddLabel("System:", 20, y, SystemColors.WindowText, FontStyle.Bold);

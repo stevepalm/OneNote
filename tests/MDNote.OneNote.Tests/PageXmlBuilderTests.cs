@@ -504,11 +504,12 @@ namespace MDNote.OneNote.Tests
         // --- CDATA validation: full pipeline XML ---
 
         // Tags that OneNote accepts inside CDATA HTML.
+        // NOTE: table, tr, td are intentionally excluded — they must use
+        // native one:Table XML, never CDATA.
         private static readonly HashSet<string> CdataAllowedTags =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "p", "br", "span", "div", "a", "ul", "ol", "li",
-                "table", "tr", "td",
                 "h1", "h2", "h3", "h4", "h5", "h6",
                 "b", "em", "strong", "i", "u", "del", "sup", "sub", "cite", "img"
             };
@@ -556,13 +557,13 @@ namespace MDNote.OneNote.Tests
 
             var htmlConverter = new HtmlToOneNoteConverter();
             var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
-            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(
-                MarkdownSourceStorage.EncodeSource(md));
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(md);
 
-            var xml = new PageXmlBuilder("page-1")
-                .SetPageTitle(result.Title ?? "Test")
-                .AddRenderedOutline(oneNoteHtml + sourceTag)
-                .Build();
+            var builder = new PageXmlBuilder("page-1")
+                .SetPageTitle(result.Title ?? "Test");
+            builder.AddRenderedOutline(oneNoteHtml);
+            builder.AppendSourceToOutline(sourceTag);
+            var xml = builder.Build();
 
             AssertAllCdataValid(xml);
         }
@@ -599,13 +600,13 @@ Normal paragraph.
 
             var htmlConverter = new HtmlToOneNoteConverter();
             var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
-            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(
-                MarkdownSourceStorage.EncodeSource(md));
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(md);
 
-            var xml = new PageXmlBuilder("page-1")
-                .SetPageTitle(result.Title ?? "Test")
-                .AddRenderedOutline(oneNoteHtml + sourceTag)
-                .Build();
+            var builder = new PageXmlBuilder("page-1")
+                .SetPageTitle(result.Title ?? "Test");
+            builder.AddRenderedOutline(oneNoteHtml);
+            builder.AppendSourceToOutline(sourceTag);
+            var xml = builder.Build();
 
             AssertAllCdataValid(xml);
 
@@ -648,15 +649,156 @@ Normal paragraph.
 
             var htmlConverter = new HtmlToOneNoteConverter();
             var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
-            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(
-                MarkdownSourceStorage.EncodeSource(md));
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(md);
 
-            var xml = new PageXmlBuilder("page-1")
-                .SetPageTitle(result.Title ?? "Test")
-                .AddRenderedOutline(oneNoteHtml + sourceTag)
-                .Build();
+            var builder = new PageXmlBuilder("page-1")
+                .SetPageTitle(result.Title ?? "Test");
+            builder.AddRenderedOutline(oneNoteHtml);
+            builder.AppendSourceToOutline(sourceTag);
+            var xml = builder.Build();
 
             AssertAllCdataValid(xml);
+        }
+
+        // --- Source separation tests ---
+
+        [Fact]
+        public void FullXml_SourceInDedicatedOE_NotMixedWithContent()
+        {
+            var md = "# Hello\n\nParagraph with **bold** and `code`.";
+            var converter = new MarkdownConverter();
+            var result = converter.Convert(md, new ConversionOptions
+            {
+                EnableSyntaxHighlighting = true,
+                Theme = "dark",
+                InlineAllStyles = true
+            });
+
+            var htmlConverter = new HtmlToOneNoteConverter();
+            var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(md);
+
+            var builder = new PageXmlBuilder("page-1")
+                .SetPageTitle(result.Title ?? "Test");
+            builder.AddRenderedOutline(oneNoteHtml);
+            builder.AppendSourceToOutline(sourceTag);
+            var xml = builder.Build();
+
+            var page = XElement.Parse(xml);
+            var oes = page.Descendants(OneNs + "OE").ToList();
+
+            // Source should be in the last OE
+            var lastOe = oes.Last();
+            lastOe.Element(OneNs + "T").Value.Should().Contain("mdsrc-gz:");
+
+            // No other OE should contain source data
+            foreach (var oe in oes.Take(oes.Count - 1))
+            {
+                var value = oe.Element(OneNs + "T")?.Value ?? "";
+                value.Should().NotContain("mdsrc-gz:", "source must be isolated in dedicated OE");
+                value.Should().NotContain("mdsrc:", "source must be isolated in dedicated OE");
+            }
+        }
+
+        [Fact]
+        public void BuildOEChildren_NoTableTagsInCdata()
+        {
+            var html = "<p>Before</p><table><tr><td>Cell</td></tr></table><p>After</p>";
+            var xml = new PageXmlBuilder("page-1")
+                .AddOutline(html)
+                .Build();
+            var page = XElement.Parse(xml);
+
+            var cdataContents = page.Descendants(OneNs + "T")
+                .Select(t => t.Value).ToList();
+
+            foreach (var cdata in cdataContents)
+            {
+                cdata.Should().NotMatchRegex(@"</?table\b",
+                    "table tags must not appear in CDATA");
+                cdata.Should().NotMatchRegex(@"</?tr\b",
+                    "tr tags must not appear in CDATA");
+                cdata.Should().NotMatchRegex(@"</?td\b",
+                    "td tags must not appear in CDATA");
+            }
+        }
+
+        [Fact]
+        public void BuildOEChildren_TableBuildFailure_FallsBackToText()
+        {
+            // A malformed table that BuildNativeTable cannot parse (no rows)
+            var html = "<table><div>Not a real table</div></table>";
+            var xml = new PageXmlBuilder("page-1")
+                .AddOutline(html)
+                .Build();
+
+            // Should not throw and should not contain table tags in CDATA
+            var page = XElement.Parse(xml);
+            foreach (var t in page.Descendants(OneNs + "T"))
+            {
+                t.Value.Should().NotMatchRegex(@"</?table\b");
+            }
+        }
+
+        [Fact]
+        public void FullXml_600LineDocument_AllCdataValid()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("# Session Notes - Large Document");
+            sb.AppendLine();
+            for (int i = 0; i < 60; i++)
+            {
+                sb.AppendLine($"## Topic {i}");
+                sb.AppendLine($"Discussion about topic {i} with **emphasis** and `inline code`.");
+                sb.AppendLine();
+                sb.AppendLine("```csharp");
+                sb.AppendLine($"public class Topic{i}");
+                sb.AppendLine("{");
+                sb.AppendLine($"    public string Name {{ get; set; }} = \"Topic {i}\";");
+                sb.AppendLine($"    public int Priority {{ get; set; }} = {i};");
+                sb.AppendLine("}");
+                sb.AppendLine("```");
+                sb.AppendLine();
+                sb.AppendLine("| Property | Value |");
+                sb.AppendLine("|----------|-------|");
+                sb.AppendLine($"| Name     | Topic {i} |");
+                sb.AppendLine("| Status   | Active |");
+                sb.AppendLine();
+            }
+            var md = sb.ToString();
+
+            // Verify document is large enough to be representative
+            md.Split('\n').Length.Should().BeGreaterThan(500);
+
+            var converter = new MarkdownConverter();
+            var result = converter.Convert(md, new ConversionOptions
+            {
+                EnableSyntaxHighlighting = true,
+                Theme = "dark",
+                InlineAllStyles = true
+            });
+
+            var htmlConverter = new HtmlToOneNoteConverter();
+            var oneNoteHtml = htmlConverter.ConvertForOneNote(result.Html);
+            var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(md);
+
+            var builder = new PageXmlBuilder("page-1")
+                .SetPageTitle(result.Title ?? "Test");
+            builder.AddRenderedOutline(oneNoteHtml);
+            builder.AppendSourceToOutline(sourceTag);
+            var xml = builder.Build();
+
+            AssertAllCdataValid(xml);
+
+            // Verify source is compressed and in dedicated OE
+            var page = XElement.Parse(xml);
+            var lastOeValue = page.Descendants(OneNs + "OE").Last()
+                .Element(OneNs + "T").Value;
+            lastOeValue.Should().Contain("mdsrc-gz:");
+
+            // Verify round-trip: source can be extracted
+            var extracted = MarkdownSourceStorage.ExtractMarkdownSource(lastOeValue);
+            extracted.Should().Be(md);
         }
 
         [Fact]

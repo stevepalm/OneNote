@@ -410,9 +410,14 @@ namespace MDNote.OneNote
             @"<tr[^>]*>([\s\S]*?)</tr>",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        // Regex to extract table cells (td)
+        // Regex to extract table cells (td) — captures attributes and content separately
         private static readonly Regex TableCellRegex = new Regex(
-            @"<td[^>]*>([\s\S]*?)</td>",
+            @"<td([^>]*)>([\s\S]*?)</td>",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        // Regex to extract background-color from inline style
+        private static readonly Regex BgColorRegex = new Regex(
+            @"background-color:\s*(#[A-Fa-f0-9]{6})",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Regex to strip table-related tags from content destined for CDATA.
@@ -421,20 +426,54 @@ namespace MDNote.OneNote
             @"</?(?:table|tr|td|th|thead|tbody|tfoot)\b[^>]*>",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        // List marker detection — emitted by HtmlToOneNoteConverter for native list rendering
+        private static readonly Regex ListBulletMarkerRegex = new Regex(
+            @"<span style=""display:none"">list-bullet:(\d+)</span>",
+            RegexOptions.Compiled);
+
+        private static readonly Regex ListNumberMarkerRegex = new Regex(
+            @"<span style=""display:none"">list-number:(\d+)</span>",
+            RegexOptions.Compiled);
+
+        // Strips margin-left style from list item <p> tags (native lists handle indentation)
+        private static readonly Regex MarginLeftRegex = new Regex(
+            @"margin-left:\d+px;?",
+            RegexOptions.Compiled);
+
+        // Strips empty style artifacts (e.g. "style=""" after removing all properties)
+        private static readonly Regex EmptyStyleRegex = new Regex(
+            @"\s*style=""\s*""",
+            RegexOptions.Compiled);
+
         private static string StripTableTags(string html)
         {
             return TableTagRegex.Replace(html, "");
+        }
+
+        private static XElement BuildSpacerOE()
+        {
+            return new XElement(OneNs + "OE",
+                new XElement(OneNs + "T",
+                    new XCData("<p style=\"font-family:Calibri;font-size:11pt\">&nbsp;</p>")));
         }
 
         private XElement BuildOEChildren(string html)
         {
             var oeChildren = new XElement(OneNs + "OEChildren");
             var blocks = SplitHtmlBlocks(html);
+            bool prevWasListItem = false;
 
             foreach (var block in blocks)
             {
                 if (block.StartsWith("<table", StringComparison.OrdinalIgnoreCase))
                 {
+                    // Insert spacer at list→non-list transition
+                    if (prevWasListItem)
+                    {
+                        oeChildren.Add(BuildSpacerOE());
+                        prevWasListItem = false;
+                    }
+
                     // Convert HTML table to OneNote native table XML
                     var tableOe = BuildNativeTable(block);
                     if (tableOe != null)
@@ -457,6 +496,52 @@ namespace MDNote.OneNote
 
                 // Strip any embedded table tags that may have leaked into non-table blocks
                 var sanitized = StripTableTags(block);
+
+                // Check for list markers — generate native one:List XML
+                var bulletMatch = ListBulletMarkerRegex.Match(sanitized);
+                var numberMatch = ListNumberMarkerRegex.Match(sanitized);
+
+                if (bulletMatch.Success)
+                {
+                    prevWasListItem = true;
+                    var content = ListBulletMarkerRegex.Replace(sanitized, "");
+                    content = MarginLeftRegex.Replace(content, "");
+                    content = EmptyStyleRegex.Replace(content, "");
+
+                    oeChildren.Add(new XElement(OneNs + "OE",
+                        new XElement(OneNs + "List",
+                            new XElement(OneNs + "Bullet",
+                                new XAttribute("bullet", "2"),
+                                new XAttribute("fontSize", "11.0"))),
+                        new XElement(OneNs + "T",
+                            new XCData(content))));
+                    continue;
+                }
+
+                if (numberMatch.Success)
+                {
+                    prevWasListItem = true;
+                    var content = ListNumberMarkerRegex.Replace(sanitized, "");
+                    content = MarginLeftRegex.Replace(content, "");
+                    content = EmptyStyleRegex.Replace(content, "");
+
+                    oeChildren.Add(new XElement(OneNs + "OE",
+                        new XElement(OneNs + "List",
+                            new XElement(OneNs + "Number",
+                                new XAttribute("numberSequence", "0"),
+                                new XAttribute("fontSize", "11.0"))),
+                        new XElement(OneNs + "T",
+                            new XCData(content))));
+                    continue;
+                }
+
+                // Insert spacer at list→non-list transition
+                if (prevWasListItem)
+                {
+                    oeChildren.Add(BuildSpacerOE());
+                    prevWasListItem = false;
+                }
+
                 oeChildren.Add(
                     new XElement(OneNs + "OE",
                         new XElement(OneNs + "T",
@@ -477,17 +562,17 @@ namespace MDNote.OneNote
             if (rows.Count == 0)
                 return null;
 
-            // Parse all rows to determine column count and cell contents
-            var tableData = new List<List<string>>();
+            // Parse all rows to determine column count and cell contents + attributes
+            var tableData = new List<List<(string attrs, string content)>>();
             int maxCols = 0;
 
             foreach (Match rowMatch in rows)
             {
                 var cells = TableCellRegex.Matches(rowMatch.Groups[1].Value);
-                var row = new List<string>();
+                var row = new List<(string attrs, string content)>();
                 foreach (Match cellMatch in cells)
                 {
-                    row.Add(cellMatch.Groups[1].Value.Trim());
+                    row.Add((cellMatch.Groups[1].Value, cellMatch.Groups[2].Value.Trim()));
                 }
                 if (row.Count > maxCols)
                     maxCols = row.Count;
@@ -519,12 +604,20 @@ namespace MDNote.OneNote
                 var row = new XElement(OneNs + "Row");
                 for (int c = 0; c < maxCols; c++)
                 {
-                    var cellContent = c < rowData.Count ? rowData[c] : "";
-                    var cell = new XElement(OneNs + "Cell",
-                        new XElement(OneNs + "OEChildren",
-                            new XElement(OneNs + "OE",
-                                new XElement(OneNs + "T",
-                                    new XCData(cellContent)))));
+                    var cellAttrs = c < rowData.Count ? rowData[c].attrs : "";
+                    var cellContent = c < rowData.Count ? rowData[c].content : "";
+
+                    var cell = new XElement(OneNs + "Cell");
+
+                    // Apply shading from background-color style
+                    var bgMatch = BgColorRegex.Match(cellAttrs);
+                    if (bgMatch.Success)
+                        cell.Add(new XAttribute("shadingColor", bgMatch.Groups[1].Value));
+
+                    cell.Add(new XElement(OneNs + "OEChildren",
+                        new XElement(OneNs + "OE",
+                            new XElement(OneNs + "T",
+                                new XCData(cellContent)))));
                     row.Add(cell);
                 }
                 table.Add(row);

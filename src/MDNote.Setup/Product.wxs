@@ -28,7 +28,7 @@
   <Package
     Name="MD Note"
     Manufacturer="MD Note"
-    Version="1.0.8.0"
+    Version="1.0.9.0"
     UpgradeCode="B7E3F1A2-9C4D-4E5F-8A6B-1D2E3F4A5B6C"
     Compressed="yes"
     InstallerVersion="500">
@@ -221,7 +221,7 @@
           <RegistryValue Name="ThreadingModel" Type="string" Value="Both" />
           <RegistryValue Name="Class" Type="string" Value="MDNote.AddIn" />
           <RegistryValue Name="Assembly" Type="string"
-                         Value="MDNote.AddIn, Version=1.0.8.0, Culture=neutral, PublicKeyToken=null" />
+                         Value="MDNote.AddIn, Version=1.0.9.0, Culture=neutral, PublicKeyToken=null" />
           <RegistryValue Name="RuntimeVersion" Type="string" Value="v4.0.30319" />
           <RegistryValue Name="CodeBase" Type="string" Value="[INSTALLFOLDER]MDNote.AddIn.dll" />
         </RegistryKey>

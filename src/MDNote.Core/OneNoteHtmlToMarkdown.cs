@@ -22,9 +22,9 @@ namespace MDNote.Core
             @"<tr><td[^>]*white-space:pre[^>]*>([\s\S]*?)</td></tr></table>",
             RegexOptions.Compiled);
 
-        // Heading: <p style="font-size:XXpt;font-weight:bold">
+        // Heading: <p style="[font-family:Calibri;]font-size:XXpt;font-weight:bold">
         private static readonly Regex HeadingRegex = new Regex(
-            @"<p\s+style=""font-size:(\d+)pt;font-weight:bold""[^>]*>([\s\S]*?)</p>",
+            @"<p\s+style=""(?:font-family:[^;]+;)?font-size:(\d+)pt;font-weight:bold""[^>]*>([\s\S]*?)</p>",
             RegexOptions.Compiled);
 
         // Blockquote: <p style="margin-left:NNpx;border-left:3px solid #COLOR;...">
@@ -119,7 +119,8 @@ namespace MDNote.Core
         // Heading font-size to level mapping
         private static readonly Dictionary<int, int> FontSizeToLevel = new Dictionary<int, int>
         {
-            { 20, 1 }, { 16, 2 }, { 13, 3 }, { 11, 4 }, { 10, 5 }, { 9, 6 }
+            { 20, 1 }, { 18, 2 }, { 16, 3 }, { 14, 4 }, { 13, 3 }, { 12, 5 },
+            { 11, 4 }, { 10, 5 }, { 9, 6 }
         };
 
         // Display name to language alias (reverse of SyntaxHighlighter.GetDisplayName)

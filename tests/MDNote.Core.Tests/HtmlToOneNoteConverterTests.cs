@@ -141,17 +141,18 @@ public class HtmlToOneNoteConverterTests
 
     [Theory]
     [InlineData(1, "20pt")]
-    [InlineData(2, "16pt")]
-    [InlineData(3, "13pt")]
-    [InlineData(4, "11pt")]
-    [InlineData(5, "10pt")]
-    [InlineData(6, "9pt")]
+    [InlineData(2, "18pt")]
+    [InlineData(3, "16pt")]
+    [InlineData(4, "14pt")]
+    [InlineData(5, "12pt")]
+    [InlineData(6, "11pt")]
     public void ConvertForOneNote_Headings_ConvertedToPWithFontSize(int level, string expectedSize)
     {
         var html = $"<h{level}>Test Heading</h{level}>";
         var result = _converter.ConvertForOneNote(html);
         result.Should().Contain($"font-size:{expectedSize}");
         result.Should().Contain("font-weight:bold");
+        result.Should().Contain("font-family:Calibri");
         result.Should().Contain("Test Heading");
         result.Should().NotContain($"<h{level}");
     }
@@ -468,8 +469,9 @@ public class HtmlToOneNoteConverterTests
         var result = _converter.ConvertForOneNote(html);
         result.Should().NotContain("<section");
         result.Should().NotContain("<footer");
-        result.Should().Contain("<p>Content</p>");
-        result.Should().Contain("<p>Footer</p>");
+        result.Should().Contain("Content</p>");
+        result.Should().Contain("Footer</p>");
+        result.Should().Contain("font-family:Calibri;font-size:11pt");
     }
 
     [Fact]
@@ -492,9 +494,9 @@ public class HtmlToOneNoteConverterTests
         result.Should().Contain("<em>");
         result.Should().Contain("<span>");
         result.Should().Contain("<a href=");
-        // Lists are converted to styled <p> with bullet/number prefixes
-        result.Should().Contain("\u2022 item");  // bullet for <ul>
-        result.Should().Contain("1. item");      // number for <ol>
+        // Lists are converted to styled <p> with list markers for native OneNote lists
+        result.Should().Contain("list-bullet:");  // marker for <ul>
+        result.Should().Contain("list-number:");  // marker for <ol>
         result.Should().Contain("<div>");
         result.Should().Contain("<b>");
         result.Should().Contain("<i>");
@@ -513,7 +515,8 @@ public class HtmlToOneNoteConverterTests
         result.Should().NotContain("<section");
         result.Should().NotContain("<article");
         result.Should().NotContain("<aside");
-        result.Should().Contain("<p>deep text</p>");
+        result.Should().Contain("deep text</p>");
+        result.Should().Contain("font-family:Calibri;font-size:11pt");
     }
 
     // --- HTML comment stripping ---
@@ -537,5 +540,70 @@ public class HtmlToOneNoteConverterTests
         result.Should().NotContain("<!--");
         result.Should().Contain("Text");
         result.Should().Contain("More");
+    }
+
+    // --- Base font ---
+
+    [Fact]
+    public void ConvertForOneNote_BaseFontApplied_ToPlainParagraph()
+    {
+        var html = "<p>Normal text</p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("font-family:Calibri;font-size:11pt");
+        result.Should().Contain("Normal text");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_BaseFontNotApplied_ToHeading()
+    {
+        var html = "<h2>Title</h2>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("font-size:18pt");
+        // The heading <p> itself should not have 11pt, though a spacer <p> follows it
+        result.Should().Contain("<p style=\"font-family:Calibri;font-size:18pt;font-weight:bold\">Title</p>");
+    }
+
+    // --- List markers ---
+
+    [Fact]
+    public void ConvertForOneNote_UnorderedList_EmitsListBulletMarker()
+    {
+        var html = "<ul><li>Item one</li></ul>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("list-bullet:0");
+        result.Should().Contain("Item one");
+        result.Should().NotContain("\u2022");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_OrderedList_EmitsListNumberMarker()
+    {
+        var html = "<ol><li>First</li><li>Second</li></ol>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("list-number:0");
+        result.Should().Contain("First");
+        result.Should().Contain("Second");
+        result.Should().NotContain("1. First");
+        result.Should().NotContain("2. Second");
+    }
+
+    // --- Table header background ---
+
+    [Fact]
+    public void ConvertForOneNote_TableHeaderCells_HaveBackgroundColor()
+    {
+        var html = "<table><tr><th>Header</th></tr><tr><td>Data</td></tr></table>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("background-color:#DEEBF6");
+    }
+
+    // --- Heading spacing ---
+
+    [Fact]
+    public void ConvertForOneNote_Heading_FollowedBySpacerParagraph()
+    {
+        var html = "<h1>Title</h1><p>Text</p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("&nbsp;</p>");
     }
 }

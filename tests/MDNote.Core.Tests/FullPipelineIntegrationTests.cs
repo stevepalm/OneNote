@@ -154,10 +154,11 @@ That's all!
         oneNoteHtml.Should().NotContain("<pre>");
         oneNoteHtml.Should().NotContain("<code>");
 
-        // Headings converted to styled paragraphs
+        // Headings converted to styled paragraphs with Calibri font
+        oneNoteHtml.Should().Contain("font-family:Calibri");
         oneNoteHtml.Should().Contain("font-size:20pt");
+        oneNoteHtml.Should().Contain("font-size:18pt");
         oneNoteHtml.Should().Contain("font-size:16pt");
-        oneNoteHtml.Should().Contain("font-size:13pt");
 
         // Code blocks as tables
         oneNoteHtml.Should().Contain("Python");
@@ -184,11 +185,17 @@ That's all!
         // Highlight
         oneNoteHtml.Should().Contain("background-color:#ffff00");
 
-        // Lists converted to styled paragraphs with bullet/number prefixes
-        oneNoteHtml.Should().Contain("\u2022 ");  // bullet for <ul>
+        // Lists converted to styled paragraphs with list markers for native OneNote lists
+        oneNoteHtml.Should().Contain("list-bullet:");
         oneNoteHtml.Should().NotContain("<ul>");
         oneNoteHtml.Should().NotContain("<ol>");
         oneNoteHtml.Should().NotContain("<li>");
+
+        // Table headers have background color
+        oneNoteHtml.Should().Contain("background-color:#DEEBF6");
+
+        // Base font applied to normal text
+        oneNoteHtml.Should().Contain("font-family:Calibri;font-size:11pt");
 
         // Links and images preserved
         oneNoteHtml.Should().Contain("<a href=");

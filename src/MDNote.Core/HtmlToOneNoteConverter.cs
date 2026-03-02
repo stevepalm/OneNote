@@ -185,6 +185,14 @@ namespace MDNote.Core
         private static readonly string[] BlockquoteBorderColors =
             { "#4a9eff", "#7b68ee", "#ff7043", "#66bb6a", "#ffa726", "#ccc" };
 
+        // Base font for normal text — applied to <p> tags without explicit font-size.
+        private const string BaseFont = "font-family:Calibri;font-size:11pt";
+
+        // Matches <p> opening tags (with optional attributes) for base font injection.
+        private static readonly Regex PTagOpenRegex = new Regex(
+            @"<p(\s[^>]*)?>",
+            RegexOptions.Compiled);
+
         private readonly CodeBlockRenderer _codeBlockRenderer;
 
         public HtmlToOneNoteConverter(string theme = "dark")
@@ -246,9 +254,10 @@ namespace MDNote.Core
                 "<span style=\"font-family:Consolas,'Courier New',monospace;" +
                 "font-size:10pt;background-color:#f0f0f0;padding:1px 4px\">$1</span>");
 
-            // 5. Lists — convert <ul>/<ol>/<li> to styled <p> paragraphs.
-            //    OneNote CDATA does not support list tags; render as bulleted/
-            //    numbered paragraphs. Process iteratively for nested lists.
+            // 5. Lists — convert <ul>/<ol>/<li> to styled <p> paragraphs with list markers.
+            //    OneNote CDATA does not support list tags. Marker spans signal
+            //    PageXmlBuilder to generate native one:List XML elements.
+            //    Process iteratively for nested lists.
             int listDepth = 0;
             while (UlRegex.IsMatch(html) || OlRegex.IsMatch(html))
             {
@@ -259,18 +268,18 @@ namespace MDNote.Core
                 {
                     var inner = match.Groups[1].Value;
                     return LiRegex.Replace(inner, liMatch =>
-                        $"<p style=\"margin-left:{indent}px\">\u2022 {liMatch.Groups[1].Value.Trim()}</p>");
+                        $"<p style=\"margin-left:{indent}px\">" +
+                        $"<span style=\"display:none\">list-bullet:{depth}</span>" +
+                        $"{liMatch.Groups[1].Value.Trim()}</p>");
                 });
 
                 html = OlRegex.Replace(html, match =>
                 {
                     var inner = match.Groups[1].Value;
-                    int counter = 0;
                     return LiRegex.Replace(inner, liMatch =>
-                    {
-                        counter++;
-                        return $"<p style=\"margin-left:{indent}px\">{counter}. {liMatch.Groups[1].Value.Trim()}</p>";
-                    });
+                        $"<p style=\"margin-left:{indent}px\">" +
+                        $"<span style=\"display:none\">list-number:{depth}</span>" +
+                        $"{liMatch.Groups[1].Value.Trim()}</p>");
                 });
 
                 listDepth++;
@@ -334,7 +343,9 @@ namespace MDNote.Core
                 var level = int.Parse(match.Groups[1].Value);
                 var content = match.Groups[3].Value;
                 var style = GetHeadingStyle(level);
-                return $"<p style=\"{style}\">{content}</p>";
+                // Append a spacer paragraph for visual separation after headings
+                return $"<p style=\"{style}\">{content}</p>" +
+                       $"<p style=\"{BaseFont}\">&nbsp;</p>";
             });
 
             // 14. Strip <thead>/<tbody> (OneNote doesn't support them)
@@ -351,14 +362,14 @@ namespace MDNote.Core
                 var existingStyle = match.Groups[1].Value;
                 var otherAttrs = match.Groups[2].Value;
                 return $"<td style=\"border:1px solid #ccc;padding:6px 10px;" +
-                       $"font-weight:bold;border-bottom:2px solid #999;{existingStyle}\"{otherAttrs}>";
+                       $"font-weight:bold;border-bottom:2px solid #999;background-color:#DEEBF6;{existingStyle}\"{otherAttrs}>";
             });
             //     Then handle <th> without style
             html = ThOpenRegex.Replace(html, match =>
             {
                 var attrs = match.Groups[1].Value;
                 return $"<td style=\"border:1px solid #ccc;padding:6px 10px;" +
-                       $"font-weight:bold;border-bottom:2px solid #999\"{attrs}>";
+                       $"font-weight:bold;border-bottom:2px solid #999;background-color:#DEEBF6\"{attrs}>";
             });
             html = ThCloseRegex.Replace(html, "</td>");
 
@@ -392,6 +403,18 @@ namespace MDNote.Core
                 return decoded != match.Value ? decoded : match.Value;
             });
 
+            // 21. Apply base font (Calibri 11pt) to <p> tags without explicit font-size.
+            //     Skips headings, footnote sections, and other elements with font-size already set.
+            html = PTagOpenRegex.Replace(html, match =>
+            {
+                var attrs = match.Groups[1].Success ? match.Groups[1].Value : "";
+                if (attrs.Contains("font-size"))
+                    return match.Value; // Already styled (heading, footnote, etc.)
+                if (attrs.Contains("style=\""))
+                    return match.Value.Replace("style=\"", "style=\"" + BaseFont + ";");
+                return "<p style=\"" + BaseFont + "\"" + attrs + ">";
+            });
+
             return html;
         }
 
@@ -399,13 +422,13 @@ namespace MDNote.Core
         {
             switch (level)
             {
-                case 1: return "font-size:20pt;font-weight:bold";
-                case 2: return "font-size:16pt;font-weight:bold";
-                case 3: return "font-size:13pt;font-weight:bold";
-                case 4: return "font-size:11pt;font-weight:bold";
-                case 5: return "font-size:10pt;font-weight:bold";
-                case 6: return "font-size:9pt;font-weight:bold";
-                default: return "font-weight:bold";
+                case 1: return "font-family:Calibri;font-size:20pt;font-weight:bold";
+                case 2: return "font-family:Calibri;font-size:18pt;font-weight:bold";
+                case 3: return "font-family:Calibri;font-size:16pt;font-weight:bold";
+                case 4: return "font-family:Calibri;font-size:14pt;font-weight:bold";
+                case 5: return "font-family:Calibri;font-size:12pt;font-weight:bold";
+                case 6: return "font-family:Calibri;font-size:11pt;font-weight:bold";
+                default: return "font-family:Calibri;font-weight:bold";
             }
         }
     }

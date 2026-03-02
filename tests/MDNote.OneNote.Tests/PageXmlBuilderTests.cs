@@ -816,5 +816,89 @@ Normal paragraph.
             var removed = builder.ClearRenderedOutlines();
             removed.Should().BeTrue("legacy comment marker should still be detected");
         }
+
+        // --- Native list generation ---
+
+        [Fact]
+        public void BuildOEChildren_BulletMarker_ProducesNativeList()
+        {
+            var html = "<p style=\"margin-left:28px\">" +
+                       "<span style=\"display:none\">list-bullet:0</span>Item text</p>";
+            var xml = new PageXmlBuilder("page-1")
+                .AddOutline(html)
+                .Build();
+            var page = XElement.Parse(xml);
+
+            var oe = page.Descendants(OneNs + "OE")
+                .FirstOrDefault(o => o.Element(OneNs + "List") != null);
+            oe.Should().NotBeNull("list marker should produce a native list OE");
+            oe.Element(OneNs + "List")
+              .Element(OneNs + "Bullet").Should().NotBeNull();
+            oe.Element(OneNs + "T").Value.Should().Contain("Item text");
+            oe.Element(OneNs + "T").Value.Should().NotContain("list-bullet");
+        }
+
+        [Fact]
+        public void BuildOEChildren_NumberMarker_ProducesNativeList()
+        {
+            var html = "<p style=\"margin-left:28px\">" +
+                       "<span style=\"display:none\">list-number:0</span>First item</p>";
+            var xml = new PageXmlBuilder("page-1")
+                .AddOutline(html)
+                .Build();
+            var page = XElement.Parse(xml);
+
+            var oe = page.Descendants(OneNs + "OE")
+                .FirstOrDefault(o => o.Element(OneNs + "List") != null);
+            oe.Should().NotBeNull("list marker should produce a native list OE");
+            oe.Element(OneNs + "List")
+              .Element(OneNs + "Number").Should().NotBeNull();
+            oe.Element(OneNs + "T").Value.Should().Contain("First item");
+            oe.Element(OneNs + "T").Value.Should().NotContain("list-number");
+        }
+
+        // --- Table header shading ---
+
+        [Fact]
+        public void BuildNativeTable_HeaderWithBackground_HasShadingColor()
+        {
+            var html = "<table style=\"border-collapse:collapse;margin:8px 0\">" +
+                       "<tr><td style=\"border:1px solid #ccc;padding:6px 10px;" +
+                       "font-weight:bold;border-bottom:2px solid #999;" +
+                       "background-color:#DEEBF6\">Header</td></tr>" +
+                       "<tr><td style=\"border:1px solid #ccc;padding:6px 10px\">Data</td></tr></table>";
+            var xml = new PageXmlBuilder("page-1")
+                .AddOutline(html)
+                .Build();
+            var page = XElement.Parse(xml);
+
+            var cells = page.Descendants(OneNs + "Cell").ToList();
+            cells.Should().HaveCountGreaterThanOrEqualTo(2);
+            cells[0].Attribute("shadingColor")?.Value.Should().Be("#DEEBF6");
+            cells[1].Attribute("shadingColor").Should().BeNull();
+        }
+
+        // --- List spacing ---
+
+        [Fact]
+        public void BuildOEChildren_ListToNonList_InsertsSpacerOE()
+        {
+            var html = "<p style=\"margin-left:28px\">" +
+                       "<span style=\"display:none\">list-bullet:0</span>Item</p>" +
+                       "<p style=\"font-family:Calibri;font-size:11pt\">Body text</p>";
+            var xml = new PageXmlBuilder("page-1")
+                .AddOutline(html)
+                .Build();
+            var page = XElement.Parse(xml);
+
+            var oes = page.Element(OneNs + "Outline")
+                         .Element(OneNs + "OEChildren")
+                         .Elements(OneNs + "OE").ToList();
+
+            // Should have: list OE, spacer OE, body OE = at least 3
+            oes.Count.Should().BeGreaterThanOrEqualTo(3);
+            // Spacer OE should contain &nbsp;
+            oes[1].Element(OneNs + "T").Value.Should().Contain("&nbsp;");
+        }
     }
 }

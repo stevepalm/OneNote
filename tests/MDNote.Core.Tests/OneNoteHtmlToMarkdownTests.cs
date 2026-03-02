@@ -38,8 +38,11 @@ public class OneNoteHtmlToMarkdownTests
 
     [Theory]
     [InlineData(20, "#")]
-    [InlineData(16, "##")]
+    [InlineData(18, "##")]
+    [InlineData(16, "###")]
+    [InlineData(14, "####")]
     [InlineData(13, "###")]
+    [InlineData(12, "#####")]
     [InlineData(11, "####")]
     [InlineData(10, "#####")]
     [InlineData(9, "######")]
@@ -48,6 +51,14 @@ public class OneNoteHtmlToMarkdownTests
         var html = $"<p style=\"font-size:{fontSize}pt;font-weight:bold\">Heading Text</p>";
         var md = _converter.Convert(html);
         md.Should().Contain($"{prefix} Heading Text");
+    }
+
+    [Fact]
+    public void Convert_HeadingWithFontFamily_StillDetected()
+    {
+        var html = "<p style=\"font-family:Calibri;font-size:18pt;font-weight:bold\">Title</p>";
+        var md = _converter.Convert(html);
+        md.Should().Contain("## Title");
     }
 
     [Fact]

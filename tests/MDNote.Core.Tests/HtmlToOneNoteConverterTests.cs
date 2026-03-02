@@ -492,9 +492,9 @@ public class HtmlToOneNoteConverterTests
         result.Should().Contain("<em>");
         result.Should().Contain("<span>");
         result.Should().Contain("<a href=");
-        result.Should().Contain("<ul>");
-        result.Should().Contain("<li>");
-        result.Should().Contain("<ol>");
+        // Lists are converted to styled <p> with bullet/number prefixes
+        result.Should().Contain("\u2022 item");  // bullet for <ul>
+        result.Should().Contain("1. item");      // number for <ol>
         result.Should().Contain("<div>");
         result.Should().Contain("<b>");
         result.Should().Contain("<i>");

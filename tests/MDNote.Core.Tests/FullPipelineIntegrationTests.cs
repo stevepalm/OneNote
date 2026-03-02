@@ -184,9 +184,11 @@ That's all!
         // Highlight
         oneNoteHtml.Should().Contain("background-color:#ffff00");
 
-        // Lists preserved
-        oneNoteHtml.Should().Contain("<ul>");
-        oneNoteHtml.Should().Contain("<ol>");
+        // Lists converted to styled paragraphs with bullet/number prefixes
+        oneNoteHtml.Should().Contain("\u2022 ");  // bullet for <ul>
+        oneNoteHtml.Should().NotContain("<ul>");
+        oneNoteHtml.Should().NotContain("<ol>");
+        oneNoteHtml.Should().NotContain("<li>");
 
         // Links and images preserved
         oneNoteHtml.Should().Contain("<a href=");

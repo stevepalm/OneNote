@@ -7,8 +7,9 @@ namespace MDNote.Core
 {
     /// <summary>
     /// Converts Markdig-generated HTML into the subset of HTML that OneNote supports in CDATA.
-    /// Supported: p, br, span, div, a, ul, ol, li, table, tr, td, h1-h6, b, em, strong, i, u,
+    /// Supported: p, br, span, div, a, table, tr, td, h1-h6, b, em, strong, i, u,
     ///            del, sup, sub, cite, img. Inline style attributes are preserved.
+    /// Lists (ul/ol/li) are converted to styled paragraphs with bullet/number prefixes.
     /// </summary>
     public class HtmlToOneNoteConverter
     {
@@ -41,6 +42,20 @@ namespace MDNote.Core
         // OneNote does not support <code> in CDATA; convert to styled <span>.
         private static readonly Regex InlineCodeRegex = new Regex(
             @"<code(?:\s[^>]*)?>([^<]*?)</code>",
+            RegexOptions.Compiled);
+
+        // Lists — OneNote CDATA does not support <ul>, <ol>, <li>.
+        // Convert to styled <p> with bullet/number prefixes.
+        private static readonly Regex UlRegex = new Regex(
+            @"<ul[^>]*>([\s\S]*?)</ul>",
+            RegexOptions.Compiled);
+
+        private static readonly Regex OlRegex = new Regex(
+            @"<ol[^>]*>([\s\S]*?)</ol>",
+            RegexOptions.Compiled);
+
+        private static readonly Regex LiRegex = new Regex(
+            @"<li[^>]*>([\s\S]*?)</li>",
             RegexOptions.Compiled);
 
         // Blockquotes
@@ -131,7 +146,7 @@ namespace MDNote.Core
         // Any tag NOT in this set is stripped (content preserved) as a safety net.
         private static readonly HashSet<string> AllowedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "p", "br", "span", "div", "a", "ul", "ol", "li",
+            "p", "br", "span", "div", "a",
             "table", "tr", "td",
             "h1", "h2", "h3", "h4", "h5", "h6",
             "b", "em", "strong", "i", "u", "del", "sup", "sub", "cite", "img"
@@ -141,6 +156,25 @@ namespace MDNote.Core
         private static readonly Regex AnyHtmlTagRegex = new Regex(
             @"</?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*/?>",
             RegexOptions.Compiled);
+
+        // Matches id and class attributes on HTML tags — OneNote CDATA rejects them.
+        // Markdig's AutoIdentifiers extension adds id="..." to headings; GenericAttributes
+        // and TaskLists may add class="...". Both cause 0x80042009 (hrInsertingHTML).
+        private static readonly Regex UnsupportedAttrRegex = new Regex(
+            @"\s+(?:id|class)=""[^""]*""",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        // Matches HTML named entities like &ldquo; &rdquo; &hellip; etc.
+        // OneNote CDATA only supports basic XML entities (&amp; &lt; &gt; &quot; &nbsp;).
+        // SmartyPants and Markdig produce named entities that must be decoded to Unicode.
+        private static readonly Regex NamedEntityRegex = new Regex(
+            @"&([a-zA-Z]+);",
+            RegexOptions.Compiled);
+
+        // Entities that OneNote CDATA understands — do not decode these.
+        private static readonly HashSet<string> SafeEntities =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "amp", "lt", "gt", "quot", "apos", "nbsp" };
 
         // Matches HTML comments (<!-- ... -->). OneNote CDATA does not accept comments.
         private static readonly Regex HtmlCommentRegex = new Regex(
@@ -212,7 +246,38 @@ namespace MDNote.Core
                 "<span style=\"font-family:Consolas,'Courier New',monospace;" +
                 "font-size:10pt;background-color:#f0f0f0;padding:1px 4px\">$1</span>");
 
-            // 5. Blockquotes — may be nested, process iteratively with increasing indent
+            // 5. Lists — convert <ul>/<ol>/<li> to styled <p> paragraphs.
+            //    OneNote CDATA does not support list tags; render as bulleted/
+            //    numbered paragraphs. Process iteratively for nested lists.
+            int listDepth = 0;
+            while (UlRegex.IsMatch(html) || OlRegex.IsMatch(html))
+            {
+                var depth = listDepth;
+                var indent = 28 + (depth * 20);
+
+                html = UlRegex.Replace(html, match =>
+                {
+                    var inner = match.Groups[1].Value;
+                    return LiRegex.Replace(inner, liMatch =>
+                        $"<p style=\"margin-left:{indent}px\">\u2022 {liMatch.Groups[1].Value.Trim()}</p>");
+                });
+
+                html = OlRegex.Replace(html, match =>
+                {
+                    var inner = match.Groups[1].Value;
+                    int counter = 0;
+                    return LiRegex.Replace(inner, liMatch =>
+                    {
+                        counter++;
+                        return $"<p style=\"margin-left:{indent}px\">{counter}. {liMatch.Groups[1].Value.Trim()}</p>";
+                    });
+                });
+
+                listDepth++;
+                if (listDepth > 10) break; // safety limit for deeply nested lists
+            }
+
+            // 6. Blockquotes — may be nested, process iteratively with increasing indent
             int blockquoteDepth = 0;
             while (BlockquoteRegex.IsMatch(html))
             {
@@ -229,20 +294,20 @@ namespace MDNote.Core
                 blockquoteDepth++;
             }
 
-            // 6. Horizontal rules
+            // 7. Horizontal rules
             html = HrRegex.Replace(html, "<p style=\"border-bottom:1px solid #ccc\">&nbsp;</p>");
 
-            // 7. Checkboxes (checked first to avoid double-matching) — with NBSP spacing
+            // 8. Checkboxes (checked first to avoid double-matching) — with NBSP spacing
             html = CheckedBoxRegex.Replace(html, "\u2611\u00A0");
             html = UncheckedBoxRegex.Replace(html, "\u2610\u00A0");
 
-            // 8. Mark/highlight
+            // 9. Mark/highlight
             html = MarkRegex.Replace(html, "<span style=\"background-color:#ffff00\">$1</span>");
 
-            // 9. Footnote references — styled superscript
+            // 10. Footnote references — styled superscript
             html = FootnoteRefRegex.Replace(html, "<sup style=\"font-size:8pt;color:#4a9eff\">[$1]</sup>");
 
-            // 10. Footnote section — styled container
+            // 11. Footnote section — styled container
             html = FootnoteSectionRegex.Replace(html, match =>
             {
                 var inner = match.Groups[1].Value;
@@ -252,7 +317,7 @@ namespace MDNote.Core
                        "<span style=\"font-weight:bold\">Footnotes</span></p>" + inner;
             });
 
-            // 11. Definition lists — convert <dl>/<dt>/<dd> to styled paragraphs
+            // 12. Definition lists — convert <dl>/<dt>/<dd> to styled paragraphs
             html = DlRegex.Replace(html, match =>
             {
                 var inner = match.Groups[1].Value;
@@ -261,24 +326,25 @@ namespace MDNote.Core
                 return inner;
             });
 
-            // 12. Headings — add font-size styling
+            // 13. Headings — add font-size styling.
+            //     Drop non-style attributes (e.g. id from Markdig AutoIdentifiers)
+            //     because OneNote CDATA rejects unknown attributes like id="...".
             html = HeadingRegex.Replace(html, match =>
             {
                 var level = int.Parse(match.Groups[1].Value);
-                var attrs = match.Groups[2].Value;
                 var content = match.Groups[3].Value;
                 var style = GetHeadingStyle(level);
-                return $"<p style=\"{style}\"{attrs}>{content}</p>";
+                return $"<p style=\"{style}\">{content}</p>";
             });
 
-            // 13. Strip <thead>/<tbody> (OneNote doesn't support them)
+            // 14. Strip <thead>/<tbody> (OneNote doesn't support them)
             html = TheadTbodyRegex.Replace(html, "");
 
-            // 14. Tables — add border styles if not already present
+            // 15. Tables — add border styles if not already present
             html = TableOpenRegex.Replace(html, "<table style=\"border-collapse:collapse;margin:8px 0\"$1>");
             html = TdOpenRegex.Replace(html, "<td style=\"border:1px solid #ccc;padding:6px 10px\"$1>");
 
-            // 15. <th> → <td> with bold + header bottom border
+            // 16. <th> → <td> with bold + header bottom border
             //     First handle <th> with existing style (preserves text-align from Markdig)
             html = ThWithStyleRegex.Replace(html, match =>
             {
@@ -296,16 +362,34 @@ namespace MDNote.Core
             });
             html = ThCloseRegex.Replace(html, "</td>");
 
-            // 16. Strip HTML comments — OneNote CDATA does not accept them.
+            // 17. Strip HTML comments — OneNote CDATA does not accept them.
             html = HtmlCommentRegex.Replace(html, string.Empty);
 
-            // 17. Safety net: strip any HTML tags not in OneNote's supported set.
+            // 18. Safety net: strip any HTML tags not in OneNote's supported set.
             //     Runs last so all intentional conversions above have already happened.
             //     Content is preserved; only the unsupported tag wrappers are removed.
             html = AnyHtmlTagRegex.Replace(html, match =>
             {
                 var tagName = match.Groups[1].Value;
                 return AllowedTags.Contains(tagName) ? match.Value : string.Empty;
+            });
+
+            // 19. Strip id and class attributes from any remaining tags.
+            //     OneNote CDATA only accepts style, href, src, alt on HTML elements.
+            //     Markdig extensions may add id/class to headings, lists, or divs.
+            html = UnsupportedAttrRegex.Replace(html, string.Empty);
+
+            // 20. Decode non-standard HTML named entities to Unicode characters.
+            //     OneNote CDATA only recognizes basic XML entities (&amp; &lt; &gt; &quot; &nbsp;).
+            //     SmartyPants produces &ldquo; &rdquo; &hellip; etc. which cause 0x80042009.
+            html = NamedEntityRegex.Replace(html, match =>
+            {
+                var name = match.Groups[1].Value;
+                if (SafeEntities.Contains(name))
+                    return match.Value;
+
+                var decoded = WebUtility.HtmlDecode(match.Value);
+                return decoded != match.Value ? decoded : match.Value;
             });
 
             return html;

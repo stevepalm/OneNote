@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using MDNote.Core;
 using MDNote.Core.Models;
 
@@ -9,6 +12,11 @@ namespace MDNote.OneNote
     public class PageWriter
     {
         private readonly IOneNoteInterop _interop;
+
+        /// <summary>
+        /// When a render fails with 0x80042009, the XML and HTML are saved here for diagnosis.
+        /// </summary>
+        public static string LastDiagnosticPath { get; private set; }
 
         public PageWriter(IOneNoteInterop interop)
         {
@@ -48,7 +56,16 @@ namespace MDNote.OneNote
             var sourceTag = MarkdownSourceStorage.BuildHiddenSourceHtml(markdownSource);
             builder.AppendSourceToOutline(sourceTag);
 
-            _interop.UpdatePageContent(builder.Build());
+            var xml = builder.Build();
+            try
+            {
+                _interop.UpdatePageContent(xml);
+            }
+            catch (COMException ex) when ((uint)ex.ErrorCode == OneNoteInterop.HR_INSERTING_HTML)
+            {
+                SaveDiagnosticDump(xml, oneNoteHtml);
+                throw;
+            }
         }
 
         /// <summary>
@@ -70,7 +87,17 @@ namespace MDNote.OneNote
             var oneNoteHtml = converter.ConvertForOneNote(result.Html);
 
             builder.ReplaceOrAddRenderedOutline(oneNoteHtml);
-            _interop.UpdatePageContent(builder.Build());
+
+            var xml = builder.Build();
+            try
+            {
+                _interop.UpdatePageContent(xml);
+            }
+            catch (COMException ex) when ((uint)ex.ErrorCode == OneNoteInterop.HR_INSERTING_HTML)
+            {
+                SaveDiagnosticDump(xml, oneNoteHtml);
+                throw;
+            }
         }
 
         /// <summary>
@@ -109,6 +136,28 @@ namespace MDNote.OneNote
             }
 
             _interop.UpdatePageContent(builder.Build());
+        }
+
+        private static void SaveDiagnosticDump(string xml, string html)
+        {
+            try
+            {
+                var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                var dir = Path.Combine(Path.GetTempPath(), "MDNote");
+                Directory.CreateDirectory(dir);
+
+                var xmlPath = Path.Combine(dir, $"diag-{timestamp}.xml");
+                File.WriteAllText(xmlPath, xml);
+
+                var htmlPath = Path.Combine(dir, $"diag-{timestamp}.html");
+                File.WriteAllText(htmlPath, html);
+
+                LastDiagnosticPath = xmlPath;
+            }
+            catch
+            {
+                // Best-effort diagnostic — don't let it mask the real error
+            }
         }
     }
 }

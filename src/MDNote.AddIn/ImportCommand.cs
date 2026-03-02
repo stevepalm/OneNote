@@ -113,7 +113,10 @@ namespace MDNote
             }
             catch (Exception ex)
             {
-                ErrorHandler.HandleError("Import failed.", ex);
+                var diagInfo = !string.IsNullOrEmpty(PageWriter.LastDiagnosticPath)
+                    ? $"\n\nDiagnostic dump saved to:\n{PageWriter.LastDiagnosticPath}"
+                    : "";
+                ErrorHandler.HandleError($"Import failed.{diagInfo}", ex);
             }
         }
 

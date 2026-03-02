@@ -151,6 +151,8 @@ That's all!
         oneNoteHtml.Should().NotContain("<dl>");
         oneNoteHtml.Should().NotContain("<dt>");
         oneNoteHtml.Should().NotContain("<dd>");
+        oneNoteHtml.Should().NotContain("<pre>");
+        oneNoteHtml.Should().NotContain("<code>");
 
         // Headings converted to styled paragraphs
         oneNoteHtml.Should().Contain("font-size:20pt");
@@ -302,5 +304,114 @@ That's all!
         var result = converter.Convert(md);
         result.MermaidBlocks.Should().BeEmpty();
         result.PipelineTimings.Should().ContainKey("ExtractMermaid");
+    }
+
+    [Fact]
+    public void FullPipeline_RecognizedLanguageCodeBlocks_NoPreSurvives()
+    {
+        // Languages recognized by ColorCode produce <pre> without <code>
+        var md = @"# Code Test
+
+```csharp
+public class Foo { }
+```
+
+```javascript
+const x = 42;
+```
+
+```python
+def hello(): pass
+```
+
+Some text after code.
+";
+        var converter = new MarkdownConverter();
+        var options = new ConversionOptions
+        {
+            EnableSyntaxHighlighting = true,
+            Theme = "dark",
+            InlineAllStyles = true
+        };
+        var result = converter.Convert(md, options);
+
+        var oneNoteConverter = new HtmlToOneNoteConverter();
+        var oneNoteHtml = oneNoteConverter.ConvertForOneNote(result.Html);
+
+        oneNoteHtml.Should().NotContain("<pre>");
+        oneNoteHtml.Should().NotContain("</pre>");
+        oneNoteHtml.Should().NotContain("<code>");
+        oneNoteHtml.Should().Contain("<table");
+        oneNoteHtml.Should().Contain("C#");
+        oneNoteHtml.Should().Contain("JavaScript");
+        oneNoteHtml.Should().Contain("Python");
+    }
+
+    [Fact]
+    public void FullPipeline_NoUnsupportedTagsSurvive()
+    {
+        var converter = new MarkdownConverter();
+        var options = new ConversionOptions
+        {
+            EnableSyntaxHighlighting = true,
+            Theme = "dark",
+            InlineAllStyles = true
+        };
+        var result = converter.Convert(ComprehensiveDocument, options);
+
+        var oneNoteConverter = new HtmlToOneNoteConverter();
+        var oneNoteHtml = oneNoteConverter.ConvertForOneNote(result.Html);
+
+        // Verify no unsupported tags remain using a regex check
+        var tagRegex = new System.Text.RegularExpressions.Regex(@"</?([a-zA-Z][a-zA-Z0-9]*)\b");
+        var allowed = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            "p", "br", "span", "div", "a", "ul", "ol", "li",
+            "table", "tr", "td",
+            "h1", "h2", "h3", "h4", "h5", "h6",
+            "b", "em", "strong", "i", "u", "del", "sup", "sub", "cite", "img"
+        };
+
+        foreach (System.Text.RegularExpressions.Match m in tagRegex.Matches(oneNoteHtml))
+        {
+            var tagName = m.Groups[1].Value;
+            allowed.Should().Contain(tagName,
+                $"tag <{tagName}> is not in OneNote's supported CDATA set");
+        }
+    }
+
+    [Fact]
+    public void FullPipeline_LargeDocumentWithCodeBlocks_PerformanceAcceptable()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("# Large Document with Code Blocks");
+        for (int i = 0; i < 100; i++)
+        {
+            sb.AppendLine($"\n## Section {i}");
+            sb.AppendLine($"Paragraph with **bold**, *italic*, and `inline code`.");
+            sb.AppendLine($"\n```csharp\npublic class Section{i} {{ public int Value {{ get; set; }} }}\n```");
+            sb.AppendLine($"\n```javascript\nconst section{i} = () => console.log({i});\n```");
+            sb.AppendLine($"\n| Col1 | Col2 |\n|------|------|\n| A{i} | B{i} |");
+            sb.AppendLine($"\n> A quote in section {i}");
+        }
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var converter = new MarkdownConverter();
+        var options = new ConversionOptions
+        {
+            EnableSyntaxHighlighting = true,
+            Theme = "dark",
+            InlineAllStyles = true
+        };
+        var result = converter.Convert(sb.ToString(), options);
+        var oneNoteConverter = new HtmlToOneNoteConverter();
+        var oneNoteHtml = oneNoteConverter.ConvertForOneNote(result.Html);
+        sw.Stop();
+
+        oneNoteHtml.Should().NotBeNullOrEmpty();
+        oneNoteHtml.Should().NotContain("<pre>");
+        oneNoteHtml.Should().NotContain("<code>");
+        oneNoteHtml.Should().NotContain("<blockquote>");
+        sw.ElapsedMilliseconds.Should().BeLessThan(15000);
     }
 }

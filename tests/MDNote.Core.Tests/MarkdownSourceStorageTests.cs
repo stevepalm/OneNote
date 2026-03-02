@@ -73,13 +73,14 @@ public class MarkdownSourceStorageTests
     }
 
     [Fact]
-    public void BuildHiddenSourceHtml_ContainsEncodedData()
+    public void BuildHiddenSourceHtml_UsesTitleAttribute()
     {
         var encoded = MarkdownSourceStorage.EncodeSource("# Test");
         var html = MarkdownSourceStorage.BuildHiddenSourceHtml(encoded);
-        html.Should().Contain("data-md-source=");
+        html.Should().Contain("title=\"mdsrc:");
         html.Should().Contain("display:none");
         html.Should().Contain(encoded);
+        html.Should().NotContain("data-md-source");
     }
 
     [Fact]
@@ -91,6 +92,25 @@ public class MarkdownSourceStorageTests
         var extracted = MarkdownSourceStorage.ExtractHiddenSource(html);
         extracted.Should().Be(encoded);
         MarkdownSourceStorage.DecodeSource(extracted).Should().Be(markdown);
+    }
+
+    [Fact]
+    public void ExtractHiddenSource_LegacyFormat_StillWorks()
+    {
+        var encoded = MarkdownSourceStorage.EncodeSource("# Legacy");
+        var legacyHtml = "<span data-md-source=\"" + encoded + "\" style=\"display:none\"></span>";
+        var extracted = MarkdownSourceStorage.ExtractHiddenSource(legacyHtml);
+        extracted.Should().Be(encoded);
+        MarkdownSourceStorage.DecodeSource(extracted).Should().Be("# Legacy");
+    }
+
+    [Fact]
+    public void StripHiddenSource_RemovesLegacyFormat()
+    {
+        var encoded = MarkdownSourceStorage.EncodeSource("# Legacy");
+        var legacyHtml = "<p>Content</p><span data-md-source=\"" + encoded + "\" style=\"display:none\"></span>";
+        var stripped = MarkdownSourceStorage.StripHiddenSource(legacyHtml);
+        stripped.Should().Be("<p>Content</p>");
     }
 
     [Fact]

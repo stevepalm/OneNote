@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Text.RegularExpressions;
 
@@ -13,8 +14,9 @@ namespace MDNote.Core
     {
         // Code blocks: <pre><code class="language-xxx">...</code></pre> or <pre><code>...</code></pre>
         // Also matches the SyntaxHighlighter output: <div style="margin:8px 0;">...<div style="color:...;background-color:...;">...</div></div>
+        // Note: <code> wrapper is optional because ColorCode produces <pre>...</pre> without <code>.
         private static readonly Regex HighlightedCodeBlockRegex = new Regex(
-            @"<div style=""margin:8px 0;"">(.*?)<div style=""color:#[A-Fa-f0-9]+;background-color:#[A-Fa-f0-9]+;""><pre[^>]*><code[^>]*>([\s\S]*?)</code></pre></div></div>",
+            @"<div style=""margin:8px 0;"">(.*?)<div style=""color:#[A-Fa-f0-9]+;background-color:#[A-Fa-f0-9]+;""><pre[^>]*>(?:<code[^>]*>)?([\s\S]*?)(?:</code>)?</pre></div></div>",
             RegexOptions.Compiled);
 
         private static readonly Regex LabelDivRegex = new Regex(
@@ -27,6 +29,12 @@ namespace MDNote.Core
 
         private static readonly Regex PreCodePlainRegex = new Regex(
             @"<pre><code>([\s\S]*?)</code></pre>",
+            RegexOptions.Compiled);
+
+        // Bare <pre> tags — catches any <pre> not wrapped in a SyntaxHighlighter div
+        // and not paired with <code>.  Runs after steps 1-3 to mop up orphans.
+        private static readonly Regex BarePreRegex = new Regex(
+            @"<pre[^>]*>([\s\S]*?)</pre>",
             RegexOptions.Compiled);
 
         // Inline <code> — remaining after pre/code blocks are converted to tables.
@@ -119,6 +127,21 @@ namespace MDNote.Core
             @"</?t(head|body)>",
             RegexOptions.Compiled);
 
+        // Whitelist of HTML tags that OneNote CDATA accepts.
+        // Any tag NOT in this set is stripped (content preserved) as a safety net.
+        private static readonly HashSet<string> AllowedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "p", "br", "span", "div", "a", "ul", "ol", "li",
+            "table", "tr", "td",
+            "h1", "h2", "h3", "h4", "h5", "h6",
+            "b", "em", "strong", "i", "u", "del", "sup", "sub", "cite", "img"
+        };
+
+        // Matches any HTML tag (opening, closing, or self-closing)
+        private static readonly Regex AnyHtmlTagRegex = new Regex(
+            @"</?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*/?>",
+            RegexOptions.Compiled);
+
         // Blockquote border colors for nesting levels (innermost → outermost)
         private static readonly string[] BlockquoteBorderColors =
             { "#4a9eff", "#7b68ee", "#ff7043", "#66bb6a", "#ffa726", "#ccc" };
@@ -167,6 +190,13 @@ namespace MDNote.Core
 
             // 3. Code blocks — plain <pre><code>
             html = PreCodePlainRegex.Replace(html, match =>
+            {
+                var code = match.Groups[1].Value;
+                return _codeBlockRenderer.RenderCodeBlockAsTable(code, null);
+            });
+
+            // 3b. Bare <pre> — orphans not caught by steps 1-3 (e.g. from extensions)
+            html = BarePreRegex.Replace(html, match =>
             {
                 var code = match.Groups[1].Value;
                 return _codeBlockRenderer.RenderCodeBlockAsTable(code, null);
@@ -260,6 +290,15 @@ namespace MDNote.Core
                        $"font-weight:bold;border-bottom:2px solid #999\"{attrs}>";
             });
             html = ThCloseRegex.Replace(html, "</td>");
+
+            // 16. Safety net: strip any HTML tags not in OneNote's supported set.
+            //     Runs last so all intentional conversions above have already happened.
+            //     Content is preserved; only the unsupported tag wrappers are removed.
+            html = AnyHtmlTagRegex.Replace(html, match =>
+            {
+                var tagName = match.Groups[1].Value;
+                return AllowedTags.Contains(tagName) ? match.Value : string.Empty;
+            });
 
             return html;
         }

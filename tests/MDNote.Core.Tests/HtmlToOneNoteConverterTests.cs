@@ -379,4 +379,140 @@ public class HtmlToOneNoteConverterTests
         var result = _converter.ConvertForOneNote(html);
         result.Should().Contain("\u00e9\u00e8\u00ea\u00eb");
     }
+
+    // --- ColorCode output without <code> wrapper (Gap 1) ---
+
+    [Fact]
+    public void ConvertForOneNote_ColorCodeWithoutCode_RendersAsTable()
+    {
+        // ColorCode produces <pre>...</pre> without <code> for recognized languages
+        var html =
+            "<div style=\"margin:8px 0;\">" +
+            "<div style=\"background:#2d2d2d;color:#858585;padding:4px 12px;font-size:11px;" +
+            "font-family:Consolas,'Courier New',monospace;border-radius:4px 4px 0 0;\">C#</div>" +
+            "<div style=\"color:#DADADA;background-color:#1E1E1E;\">" +
+            "<pre><span style=\"color:#569CD6\">public</span> <span style=\"color:#4EC9B0\">void</span> Test()</pre>" +
+            "</div></div>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("<table");
+        result.Should().Contain("Consolas");
+        result.Should().NotContain("<pre>");
+        result.Should().NotContain("</pre>");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_ColorCodeWithCode_StillWorks()
+    {
+        // Fallback format includes <code> — should still match
+        var html =
+            "<div style=\"margin:8px 0;\">" +
+            "<div style=\"color:#DADADA;background-color:#1E1E1E;\">" +
+            "<pre style=\"margin:0;padding:12px;overflow-x:auto;\">" +
+            "<code style=\"font-family:Consolas;font-size:13px;\">var x = 1;</code>" +
+            "</pre></div></div>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("<table");
+        result.Should().NotContain("<pre>");
+        result.Should().NotContain("<code>");
+    }
+
+    // --- Bare <pre> handler (Gap 1b) ---
+
+    [Fact]
+    public void ConvertForOneNote_BarePre_RendersAsTable()
+    {
+        var html = "<pre>some preformatted text</pre>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("<table");
+        result.Should().NotContain("<pre>");
+    }
+
+    // --- Whitelist tag sanitizer (Gap 2) ---
+
+    [Fact]
+    public void ConvertForOneNote_ColgroupCol_Stripped()
+    {
+        var html = "<table><colgroup><col/><col/></colgroup><tr><td>Cell</td></tr></table>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<colgroup");
+        result.Should().NotContain("<col");
+        result.Should().Contain("<table");
+        result.Should().Contain("Cell");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_AbbrTag_Unwrapped()
+    {
+        var html = "<p>The <abbr title=\"HyperText Markup Language\">HTML</abbr> spec</p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<abbr");
+        result.Should().Contain("HTML");
+        result.Should().Contain("spec");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_FigureTag_ContentPreserved()
+    {
+        var html = "<figure><img src=\"test.png\"/><figcaption>A caption</figcaption></figure>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<figure");
+        result.Should().NotContain("<figcaption");
+        result.Should().Contain("<img");
+        result.Should().Contain("A caption");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_SectionFooter_Unwrapped()
+    {
+        var html = "<section><p>Content</p></section><footer><p>Footer</p></footer>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<section");
+        result.Should().NotContain("<footer");
+        result.Should().Contain("<p>Content</p>");
+        result.Should().Contain("<p>Footer</p>");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_InsTag_Unwrapped()
+    {
+        var html = "<p><ins>inserted text</ins></p>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<ins");
+        result.Should().Contain("inserted text");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_AllowedTagsPreserved()
+    {
+        var html = "<p><strong>bold</strong> <em>italic</em> <span>span</span> <a href=\"#\">link</a></p>" +
+                   "<ul><li>item</li></ul><ol><li>item</li></ol>" +
+                   "<div>div</div><b>b</b><i>i</i><u>u</u><del>del</del><sup>sup</sup><sub>sub</sub><cite>cite</cite>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().Contain("<strong>");
+        result.Should().Contain("<em>");
+        result.Should().Contain("<span>");
+        result.Should().Contain("<a href=");
+        result.Should().Contain("<ul>");
+        result.Should().Contain("<li>");
+        result.Should().Contain("<ol>");
+        result.Should().Contain("<div>");
+        result.Should().Contain("<b>");
+        result.Should().Contain("<i>");
+        result.Should().Contain("<u>");
+        result.Should().Contain("<del>");
+        result.Should().Contain("<sup>");
+        result.Should().Contain("<sub>");
+        result.Should().Contain("<cite>");
+    }
+
+    [Fact]
+    public void ConvertForOneNote_NestedUnsupported_ContentPreserved()
+    {
+        var html = "<section><article><aside><p>deep text</p></aside></article></section>";
+        var result = _converter.ConvertForOneNote(html);
+        result.Should().NotContain("<section");
+        result.Should().NotContain("<article");
+        result.Should().NotContain("<aside");
+        result.Should().Contain("<p>deep text</p>");
+    }
 }

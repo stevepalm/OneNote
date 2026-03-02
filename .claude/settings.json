@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      // Reading files and directories
       "Bash(cat:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
@@ -11,34 +10,20 @@
       "Bash(dir:*)",
       "Bash(test:*)",
       "Bash(printf:*)",
-
-      // Read-only git operations
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git branch:*)",
       "Bash(git show:*)",
-
-      // Read-only GitHub CLI
       "Bash(gh pr view:*)",
       "Bash(gh pr list:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue view:*)",
-
-      // .NET Framework tooling (COM add-in specific)
       "Bash(\"*sn.exe*\")",
       "Bash(\"*RegAsm.exe*\")",
-      "Bash(\"*ildasm.exe*\")",
-
-      // OneNote add-in reference domains
-      "WebFetch(domain:onemoreaddin.com)",
-      "WebFetch(domain:deepwiki.com)",
-      "WebFetch(domain:getonetastic.com)",
-      "WebFetch(domain:elbruno.com)",
-      "WebFetch(domain:www.toughdev.com)"
+      "Bash(\"*ildasm.exe*\")"
     ],
     "deny": [
-      // Destructive operations
       "Bash(rm -rf /)",
       "Bash(rm -rf *)",
       "Bash(rmdir *)"

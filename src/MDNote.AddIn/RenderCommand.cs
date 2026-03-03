@@ -249,6 +249,7 @@ namespace MDNote
             finally
             {
                 owner.ReleaseHandle();
+                System.Threading.Thread.Sleep(100);
             }
         }
     }

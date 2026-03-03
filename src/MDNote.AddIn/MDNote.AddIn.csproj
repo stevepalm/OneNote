@@ -10,8 +10,12 @@
     <RegisterForComInterop>false</RegisterForComInterop>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <!-- VS install path for Office PIA references; override via environment or Directory.Build.props -->
-    <VSInstallDir Condition="'$(VSInstallDir)' == ''">C:\Program Files\Microsoft Visual Studio\18\Insiders\</VSInstallDir>
+    <!-- Auto-detect VS install path for Office PIA references; override via environment or Directory.Build.props -->
+    <VSInstallDir Condition="'$(VSInstallDir)' == '' And Exists('C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\IDE\PublicAssemblies\extensibility.dll')">C:\Program Files\Microsoft Visual Studio\18\Enterprise\</VSInstallDir>
+    <VSInstallDir Condition="'$(VSInstallDir)' == '' And Exists('C:\Program Files\Microsoft Visual Studio\18\Professional\Common7\IDE\PublicAssemblies\extensibility.dll')">C:\Program Files\Microsoft Visual Studio\18\Professional\</VSInstallDir>
+    <VSInstallDir Condition="'$(VSInstallDir)' == '' And Exists('C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\PublicAssemblies\extensibility.dll')">C:\Program Files\Microsoft Visual Studio\18\Community\</VSInstallDir>
+    <VSInstallDir Condition="'$(VSInstallDir)' == '' And Exists('C:\Program Files\Microsoft Visual Studio\18\Insiders\Common7\IDE\PublicAssemblies\extensibility.dll')">C:\Program Files\Microsoft Visual Studio\18\Insiders\</VSInstallDir>
+    <VSInstallDir Condition="'$(VSInstallDir)' == '' And Exists('C:\Program Files\Microsoft Visual Studio\18\Preview\Common7\IDE\PublicAssemblies\extensibility.dll')">C:\Program Files\Microsoft Visual Studio\18\Preview\</VSInstallDir>
   </PropertyGroup>
 
   <ItemGroup>

@@ -46,6 +46,9 @@ namespace MDNote
                 finally
                 {
                     owner.ReleaseHandle();
+                    // Allow Windows modal dialog machinery to fully unwind
+                    // before calling OneNote COM methods (avoids "dialog window is open" error)
+                    Thread.Sleep(100);
                 }
 
                 if (dialogResult != DialogResult.OK)
@@ -211,6 +214,7 @@ namespace MDNote
             finally
             {
                 owner.ReleaseHandle();
+                Thread.Sleep(100);
             }
         }
     }

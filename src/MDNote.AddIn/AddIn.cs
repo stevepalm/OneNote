@@ -202,6 +202,20 @@ namespace MDNote
             catch (Exception ex) { Log($"OnPasteRender dispatch FAILED: {ex}"); }
         }
 
+        public void OnPasteFormatted(IRibbonControl control)
+        {
+            Log("OnPasteFormatted callback invoked");
+            try { RibbonHandler.OnPasteFormatted(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnPasteFormatted dispatch FAILED: {ex}"); }
+        }
+
+        public void OnFormatPage(IRibbonControl control)
+        {
+            Log("OnFormatPage callback invoked");
+            try { RibbonHandler.OnFormatPage(_oneNoteApp); }
+            catch (Exception ex) { Log($"OnFormatPage dispatch FAILED: {ex}"); }
+        }
+
         public void OnInsertToc(IRibbonControl control)
         {
             Log("OnInsertToc callback invoked");

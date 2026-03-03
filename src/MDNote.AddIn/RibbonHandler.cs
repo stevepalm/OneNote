@@ -106,6 +106,26 @@ namespace MDNote
             }, "Toggle Live Mode");
         }
 
+        public static void OnPasteFormatted(object oneNoteApp)
+        {
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new FormatCommand(interop);
+                command.PasteFormatted();
+            }, "Paste Formatted");
+        }
+
+        public static void OnFormatPage(object oneNoteApp)
+        {
+            CommandRunner.RunCommand(() =>
+            {
+                var interop = new OneNoteInterop(oneNoteApp);
+                var command = new FormatCommand(interop);
+                command.FormatPage();
+            }, "Format Page");
+        }
+
         public static void OnInsertToc(object oneNoteApp)
         {
             CommandRunner.RunCommand(() =>

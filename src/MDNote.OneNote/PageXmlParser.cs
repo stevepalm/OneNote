@@ -119,6 +119,38 @@ namespace MDNote.OneNote
         }
 
         /// <summary>
+        /// Extracts raw CDATA HTML from all outline elements, preserving formatting tags.
+        /// Unlike <see cref="GetOutlinePlainText"/> which strips HTML, this preserves
+        /// tags like &lt;b&gt;, &lt;a&gt;, &lt;span&gt;, etc. Used by FormatPage to
+        /// re-format already-pasted web content.
+        /// Skips md-note source storage spans and rendered markers.
+        /// </summary>
+        public string GetOutlineCdataHtml()
+        {
+            var fragments = new List<string>();
+
+            foreach (var oe in _page.Elements(OneNs + "Outline")
+                .Descendants(OneNs + "OE"))
+            {
+                var tElements = oe.Elements(OneNs + "T");
+                var lineHtml = string.Concat(tElements.Select(t => t.Value));
+
+                // Skip source storage spans (hidden spans containing compressed markdown)
+                if (MarkdownSourceStorage.ExtractMarkdownSource(lineHtml) != null)
+                    continue;
+
+                // Strip the rendered marker
+                lineHtml = lineHtml.Replace(
+                    "<span style=\"display:none\">md-note-rendered</span>", "");
+
+                if (!string.IsNullOrWhiteSpace(lineHtml))
+                    fragments.Add(lineHtml);
+            }
+
+            return string.Join("\n", fragments);
+        }
+
+        /// <summary>
         /// Extracts plain text from all outline elements, stripping HTML tags.
         /// Does NOT include title text.
         /// Multiple T elements within the same OE are concatenated (same line).

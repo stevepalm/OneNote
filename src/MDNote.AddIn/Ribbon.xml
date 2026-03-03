@@ -21,6 +21,13 @@
             size="large"
             onAction="OnRenderSelection"
             keytip="RS" />
+          <button
+            id="btnFormatPage"
+            label="Format Page"
+            imageMso="DesignMode"
+            size="large"
+            onAction="OnFormatPage"
+            keytip="FP" />
           <toggleButton
             id="btnLiveMode"
             label="Live Mode"
@@ -67,6 +74,13 @@
             size="large"
             onAction="OnPasteRender"
             keytip="PR" />
+          <button
+            id="btnPasteFormatted"
+            label="Paste Formatted"
+            imageMso="PasteSpecialDialog"
+            size="large"
+            onAction="OnPasteFormatted"
+            keytip="PF" />
         </group>
 
         <group id="grpTools" label="Tools">

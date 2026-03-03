@@ -10,8 +10,8 @@ src/MDNote.AddIn/           — COM add-in (IDTExtensibility2 + IRibbonExtensibi
 src/MDNote.OneNote/         — OneNote COM interop wrapper + page XML builder/parser
 src/MDNote.Core/            — Markdown conversion engine (netstandard2.0)
 src/MDNote.Setup/           — WiX v4 MSI installer
-tests/MDNote.Core.Tests/    — net10.0 xUnit tests for Core (289 tests)
-tests/MDNote.OneNote.Tests/ — net48 xUnit tests for OneNote XML (87 tests)
+tests/MDNote.Core.Tests/    — net10.0 xUnit tests for Core (353 tests)
+tests/MDNote.OneNote.Tests/ — net48 xUnit tests for OneNote XML (93 tests)
 scripts/                    — Registration, diagnostic, & installer build scripts
 docs/                       — deploy-guide.md, quick-start.md
 ```
@@ -50,11 +50,13 @@ powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1
 - **PageXmlParser**: Parses OneNote page XML
 - **MarkdownSourceStorage**: Base64 encode/decode, stores source in page meta
 - **HtmlToOneNoteConverter**: Converts Markdig HTML output → OneNote-compatible CDATA
+- **WebHtmlToMarkdown**: Converts standard web HTML (Claude.ai, ChatGPT, etc.) → Markdown
+- **CfHtmlParser**: Extracts HTML fragment from Windows CF_HTML clipboard format
 - **SyntaxHighlighter**: ColorCode-based, cached HtmlFormatter per instance
 - **All render call sites** pass `SettingsManager.Current.ToConversionOptions()`
 
 ## Testing
-- **376 total tests** (289 Core + 87 OneNote)
+- **446 total tests** (353 Core + 93 OneNote)
 - **FluentAssertions 8.x API**: Use `BeGreaterThanOrEqualTo` (not `BeGreaterOrEqualTo`)
 - **InternalsVisibleTo**: MDNote.OneNote → MDNote.OneNote.Tests
 - **FakeOneNoteInterop**: Manual mock in tests/Helpers, Dictionary-backed page store
